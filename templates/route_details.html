@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Route Details</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">Bus Scheduling System</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a class="nav-link" href="/">Route Management</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/crew_page">Crew Management</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/dynamic_stop_requests">Dynamic Bus Stops</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <h1 class="text-center text-primary">🚏 Route Details</h1>
+
+        <div class="card p-4 mt-4 shadow">
+            <h3 id="routeName" class="text-primary"></h3>
+            <p><strong>Start Point:</strong> <span id="startPoint"></span></p>
+            <p><strong>End Point:</strong> <span id="endPoint"></span></p>
+        </div>
+
+        <div class="text-center mt-4">
+            <a href="/" class="btn btn-secondary">Back to Routes</a>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const params = new URLSearchParams(window.location.search);
+            const routeId = params.get("id");
+
+            if (!routeId) {
+                document.body.innerHTML = `<div class="container text-center mt-5">
+                    <h2 class="text-danger">⚠ Route ID Missing!</h2>
+                    <p>Please access the route details from the Routes page.</p>
+                    <a href="/" class="btn btn-primary">Go Back</a>
+                </div>`;
+                return;
+            }
+
+            fetch(`/routes/${routeId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("Route not found");
+                    }
+                    return response.json();
+                })
+                .then(route => {
+                    document.getElementById("routeName").innerText = route.route_name;
+                    document.getElementById("startPoint").innerText = route.start_point;
+                    document.getElementById("endPoint").innerText = route.end_point;
+                })
+                .catch(error => {
+                    document.body.innerHTML = `<div class="container text-center mt-5">
+                        <h2 class="text-danger">❌ Error: ${error.message}</h2>
+                        <p>Could not retrieve route details.</p>
+                        <a href="/" class="btn btn-primary">Go Back</a>
+                    </div>`;
+                    console.error("Error fetching route details:", error);
+                });
+        });
+    </script>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

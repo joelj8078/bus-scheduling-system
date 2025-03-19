@@ -1,4 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
+import pytz
 
 db = SQLAlchemy()
 
@@ -25,7 +27,7 @@ class DynamicStopRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
-    requested_time = db.Column(db.DateTime, default=db.func.current_timestamp())
+    requested_time = db.Column(db.DateTime, default=lambda: datetime.now(pytz.timezone("Asia/Kolkata")))
     status = db.Column(db.String(20), default="Pending")  # Pending, Approved, Rejected
 
 # Function to initialize database (to be called in `app.py`)

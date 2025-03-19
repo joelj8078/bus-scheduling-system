@@ -8,9 +8,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { background-color: #f8f9fa; }
-        .card { border-radius: 10px; transition: transform 0.2s ease-in-out; }
-        .card:hover { transform: scale(1.02); }
-        .table-hover tbody tr:hover { background-color: #f1f1f1; }
+        .navbar { background-color: #007bff; }
+        .navbar-brand, .nav-link { color: white !important; }
+        .nav-link.active { font-weight: bold; text-decoration: underline; }
+        .container { max-width: 900px; margin-top: 40px; }
+        .card { border-radius: 10px; }
         .modal {
             display: none;
             position: fixed;
@@ -27,24 +29,25 @@
     </style>
 </head>
 <body class="bg-light">
-    <!-- Navigation Bar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/">Bus Scheduling System</a>
+
+    <!-- ✅ Navigation Bar -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="/">🚍 Bus Scheduling System</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
-                    <li class="nav-item"><a class="nav-link active" href="/">Route Management</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/crew_page">Crew Management</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/dynamic_stop_requests">Dynamic Bus Stops</a></li>
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link active" href="/">🏠 Route Management</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/crew_page">👥 Crew Management</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/dynamic_stop_requests">📍 Dynamic Stops</a></li>
                 </ul>
             </div>
         </div>
     </nav>
 
-    <div class="container mt-5">
+    <div class="container">
         <h1 class="text-center text-primary">🚍 Bus Route Management</h1>
 
         <!-- Add Route Button -->
@@ -79,7 +82,7 @@
             <input type="text" id="route_name" class="form-control mb-2" placeholder="Route Name">
             <input type="text" id="start_point" class="form-control mb-2" placeholder="Start Point">
             <input type="text" id="end_point" class="form-control mb-2" placeholder="End Point">
-            <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+            <button class="btn btn-secondary" onclick="closeModal('addRouteModal')">Close</button>
             <button class="btn btn-primary" onclick="addRoute()">Add Route</button>
         </div>
     </div>
@@ -92,12 +95,14 @@
             <input type="text" id="edit_route_name" class="form-control mb-2" placeholder="Route Name">
             <input type="text" id="edit_start_point" class="form-control mb-2" placeholder="Start Point">
             <input type="text" id="edit_end_point" class="form-control mb-2" placeholder="End Point">
-            <button class="btn btn-secondary" onclick="closeEditModal()">Close</button>
+            <button class="btn btn-secondary" onclick="closeModal('editRouteModal')">Close</button>
             <button class="btn btn-primary" onclick="editRoute()">Save Changes</button>
         </div>
     </div>
 
-    <!-- JavaScript -->
+    <!-- ✅ Bootstrap JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
     <script>
         function fetchRoutes() {
             fetch('/routes')
@@ -122,8 +127,13 @@
                 });
         }
 
-        function showAddModal() { document.getElementById("addRouteModal").style.display = "flex"; }
-        function closeModal() { document.getElementById("addRouteModal").style.display = "none"; }
+        function showAddModal() {
+            document.getElementById("addRouteModal").style.display = "flex";
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = "none";
+        }
 
         function addRoute() {
             let routeName = document.getElementById("route_name").value;
@@ -135,7 +145,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ route_name: routeName, start_point: startPoint, end_point: endPoint })
             }).then(response => response.json())
-              .then(data => { alert(data.message); fetchRoutes(); closeModal(); });
+              .then(data => { alert(data.message); fetchRoutes(); closeModal('addRouteModal'); });
         }
 
         function showEditModal(id, routeName, startPoint, endPoint) {
@@ -143,11 +153,8 @@
             document.getElementById("edit_route_name").value = routeName;
             document.getElementById("edit_start_point").value = startPoint;
             document.getElementById("edit_end_point").value = endPoint;
-
             document.getElementById("editRouteModal").style.display = "flex";
         }
-
-        function closeEditModal() { document.getElementById("editRouteModal").style.display = "none"; }
 
         function editRoute() {
             let routeId = document.getElementById("edit_route_id").value;
@@ -160,7 +167,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ route_name: routeName, start_point: startPoint, end_point: endPoint })
             }).then(response => response.json())
-              .then(data => { alert(data.message); fetchRoutes(); closeEditModal(); });
+              .then(data => { alert(data.message); fetchRoutes(); closeModal('editRouteModal'); });
         }
 
         function confirmDelete(routeId) {

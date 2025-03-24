@@ -12,17 +12,8 @@
         .navbar-brand, .nav-link { color: white !important; }
         .nav-link.active { font-weight: bold; text-decoration: underline; }
         .container { max-width: 900px; margin-top: 40px; }
-        .card { border-radius: 10px; padding: 20px; }
-        .table-hover tbody tr:hover { background-color: #f1f1f1; }
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
+        .card { border-radius: 10px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
         .modal-content { padding: 20px; background: white; border-radius: 10px; width: 400px; }
     </style>
 </head>
@@ -32,15 +23,12 @@
     <nav class="navbar navbar-expand-lg">
         <div class="container">
             <a class="navbar-brand" href="/">🚍 Bus Scheduling System</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
+            <div class="collapse navbar-collapse">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item"><a class="nav-link active" href="/">🏠 Route Management</a></li>
                     <li class="nav-item"><a class="nav-link" href="/crew_page">👥 Crew Management</a></li>
                     <li class="nav-item"><a class="nav-link" href="/dynamic_stop_requests">📍 Dynamic Stops</a></li>
-                    <li class="nav-item"><button class="btn btn-danger btn-sm" onclick="logout()">🚪 Logout</button></li>
+                    <li class="nav-item"><a class="nav-link" href="/admin">⚙️ Admin Panel</a></li>
                 </ul>
             </div>
         </div>
@@ -48,25 +36,23 @@
 
     <div class="container">
         <h1 class="text-center text-primary">🚍 Bus Route Management</h1>
-
-        <!-- ✅ Add Route Button (Only for Admins) -->
+        
         <div class="text-center mt-4">
             <button id="addRouteButton" class="btn btn-success btn-lg" onclick="showModal('addRouteModal')">
                 <i class="fas fa-plus"></i> Add New Route
             </button>
         </div>
 
-        <!-- ✅ Routes Table -->
         <div class="card p-4 mt-4 shadow">
             <h3>Available Routes</h3>
-            <table class="table table-bordered table-striped table-hover mt-3">
+            <table class="table table-bordered table-hover">
                 <thead class="table-dark">
                     <tr>
                         <th>ID</th>
                         <th>Route Name</th>
                         <th>Start Point</th>
                         <th>End Point</th>
-                        <th>Action</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="routeTableBody"></tbody>
@@ -74,22 +60,31 @@
         </div>
     </div>
 
-    <!-- ✅ Modal for Adding Route -->
+    <!-- ✅ Add Route Modal -->
     <div id="addRouteModal" class="modal">
         <div class="modal-content">
-            <h5>Add New Route</h5>
+            <h5>Add Route</h5>
             <input type="text" id="route_name" class="form-control mb-2" placeholder="Route Name">
             <input type="text" id="start_point" class="form-control mb-2" placeholder="Start Point">
             <input type="text" id="end_point" class="form-control mb-2" placeholder="End Point">
             <button class="btn btn-secondary" onclick="closeModal('addRouteModal')">Close</button>
-            <button class="btn btn-primary" onclick="addRoute()">Add Route</button>
+            <button class="btn btn-primary" onclick="addRoute()">Add</button>
         </div>
     </div>
 
-    <!-- ✅ Bootstrap JavaScript -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- ✅ Edit Route Modal -->
+    <div id="editRouteModal" class="modal">
+        <div class="modal-content">
+            <h5>Edit Route</h5>
+            <input type="hidden" id="edit_route_id">
+            <input type="text" id="edit_route_name" class="form-control mb-2" placeholder="Route Name">
+            <input type="text" id="edit_start_point" class="form-control mb-2" placeholder="Start Point">
+            <input type="text" id="edit_end_point" class="form-control mb-2" placeholder="End Point">
+            <button class="btn btn-secondary" onclick="closeModal('editRouteModal')">Close</button>
+            <button class="btn btn-primary" onclick="editRoute()">Save Changes</button>
+        </div>
+    </div>
 
-    <!-- ✅ JavaScript -->
     <script>
         const token = localStorage.getItem("token");
         const userRole = localStorage.getItem("user_role");
@@ -100,66 +95,100 @@
         }
 
         function fetchRoutes() {
-            fetch('/routes', {
-                headers: { "Authorization": `Bearer ${token}` }
+            fetch('/routes', { 
+                headers: { 
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`,
+                    "Content-Type": "application/json"
+                } 
             })
             .then(response => response.json())
             .then(data => {
-                let routeTable = document.getElementById("routeTableBody");
-                routeTable.innerHTML = data.length
-                    ? data.map(route => `
+                if (!Array.isArray(data)) {
+                    alert(`Error: ${data.error || "Failed to fetch routes."}`);
+                    return;
+                }
+                if (data.length === 0) {
+                    document.getElementById("routeTableBody").innerHTML = 
+                        "<tr><td colspan='5' class='text-center text-muted'>No routes found.</td></tr>";
+                } else {
+                    document.getElementById("routeTableBody").innerHTML = data.map(route => `
                         <tr>
                             <td>${route.id}</td>
                             <td>${route.route_name}</td>
                             <td>${route.start_point}</td>
                             <td>${route.end_point}</td>
                             <td>
-                                ${userRole === "Admin" ? `
-                                    <button class="btn btn-warning btn-sm" onclick="editRoute(${route.id}, '${route.route_name}', '${route.start_point}', '${route.end_point}')">
-                                        <i class="fas fa-edit"></i> Edit
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" onclick="confirmDelete(${route.id})">
-                                        <i class="fas fa-trash"></i> Delete
-                                    </button>
-                                ` : "View Only"}
+                                <button class="btn btn-warning btn-sm" onclick="showEditModal(${route.id}, '${route.route_name}', '${route.start_point}', '${route.end_point}')">✏️ Edit</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteRoute(${route.id})">🗑️ Delete</button>
                             </td>
                         </tr>
-                    `).join("")
-                    : "<tr><td colspan='5' class='text-center text-muted'>No routes found.</td></tr>";
+                    `).join('');
+                }
             })
-            .catch(error => console.error("❌ Error Fetching Routes:", error));
+            .catch(err => console.error("❌ Network Error:", err));
         }
 
         function addRoute() {
-            let routeName = document.getElementById("route_name").value;
-            let startPoint = document.getElementById("start_point").value;
-            let endPoint = document.getElementById("end_point").value;
-
-            if (!routeName || !startPoint || !endPoint) {
-                alert("Please fill in all fields.");
-                return;
-            }
+            const routeName = document.getElementById("route_name").value;
+            const startPoint = document.getElementById("start_point").value;
+            const endPoint = document.getElementById("end_point").value;
 
             fetch('/routes', {
                 method: 'POST',
                 headers: {
-                    "Authorization": `Bearer ${token}`,
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`,
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({ route_name: routeName, start_point: startPoint, end_point: endPoint })
             })
-            .then(response => response.json())
+            .then(res => res.json())
             .then(data => { alert(data.message); fetchRoutes(); closeModal('addRouteModal'); });
         }
 
-        function logout() {
-            localStorage.clear();
-            alert("Logged out successfully.");
-            window.location.href = "/login";
+        function showEditModal(id, name, start, end) {
+            document.getElementById("edit_route_id").value = id;
+            document.getElementById("edit_route_name").value = name;
+            document.getElementById("edit_start_point").value = start;
+            document.getElementById("edit_end_point").value = end;
+            showModal('editRouteModal');
         }
+
+        function editRoute() {
+            const id = document.getElementById("edit_route_id").value;
+            const route_name = document.getElementById("edit_route_name").value;
+            const start_point = document.getElementById("edit_start_point").value;
+            const end_point = document.getElementById("edit_end_point").value;
+
+            fetch(`/routes/${id}`, {
+                method: 'PUT',
+                headers: { 
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`, 
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ route_name, start_point, end_point })
+            })
+            .then(response => response.json())
+            .then(data => { alert(data.message); fetchRoutes(); closeModal('editRouteModal'); });
+        }
+
+        function deleteRoute(id) {
+            if (confirm("Are you sure you want to delete this route?")) {
+                fetch(`/routes/${id}`, { 
+                    method: 'DELETE', 
+                    headers: { 
+                        "Authorization": `Bearer ${localStorage.getItem("token")}`,
+                        "Content-Type": "application/json"
+                    }
+                })
+                .then(res => res.json())
+                .then(data => { alert(data.message); fetchRoutes(); });
+            }
+        }
+
+        function showModal(id) { document.getElementById(id).style.display = "flex"; }
+        function closeModal(id) { document.getElementById(id).style.display = "none"; }
 
         window.onload = fetchRoutes;
     </script>
-
 </body>
 </html>

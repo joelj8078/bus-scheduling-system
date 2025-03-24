@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Route Details</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { background-color: #f8f9fa; }
         .navbar { background-color: #007bff; }
@@ -12,8 +13,19 @@
         .nav-link.active { font-weight: bold; text-decoration: underline; }
         .container { max-width: 900px; margin-top: 40px; }
         .card { border-radius: 10px; padding: 20px; }
-        .loader { display: block; margin: auto; border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loader {
+            border: 8px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 8px solid #007bff;
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+            margin: 100px auto;
+        }
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -22,80 +34,84 @@
     <nav class="navbar navbar-expand-lg">
         <div class="container">
             <a class="navbar-brand" href="/">🚍 Bus Scheduling System</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
+            <div class="collapse navbar-collapse">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link" href="/">🏠 Route Management</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/">🏠 Route Management</a></li>
                     <li class="nav-item"><a class="nav-link" href="/crew_page">👥 Crew Management</a></li>
                     <li class="nav-item"><a class="nav-link" href="/dynamic_stop_requests">📍 Dynamic Stops</a></li>
+                    <li class="nav-item"><button class="btn btn-danger btn-sm" onclick="logout()">🚪 Logout</button></li>
                 </ul>
             </div>
         </div>
     </nav>
 
-    <div class="container mt-5">
-        <h1 class="text-center text-primary">🚏 Route Details</h1>
+    <div class="container">
+        <h1 class="text-center text-primary">🚍 Route Details</h1>
+        
+        <!-- ✅ Loader -->
+        <div id="loader" class="loader"></div>
 
-        <div id="loader" class="loader mt-4"></div>
-
-        <div id="routeDetails" class="card p-4 mt-4 shadow d-none">
+        <!-- ✅ Route Card -->
+        <div id="routeCard" class="card shadow" style="display: none;">
             <h3 id="routeName" class="text-primary"></h3>
             <p><strong>Start Point:</strong> <span id="startPoint"></span></p>
             <p><strong>End Point:</strong> <span id="endPoint"></span></p>
-        </div>
-
-        <div class="text-center mt-4">
-            <a href="/" class="btn btn-secondary">⬅ Back to Routes</a>
+            <a href="/" class="btn btn-secondary mt-3">🔙 Back to Routes</a>
         </div>
     </div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const params = new URLSearchParams(window.location.search);
-            const routeId = params.get("id");
-            const token = localStorage.getItem("token");  // ✅ Get stored JWT token
+        const token = localStorage.getItem("token");
+        const params = new URLSearchParams(window.location.search);
+        const routeId = params.get("id");
 
-            if (!routeId) {
-                document.body.innerHTML = `<div class="container text-center mt-5">
-                    <h2 class="text-danger">⚠ Route ID Missing!</h2>
-                    <p>Please access the route details from the Routes page.</p>
-                    <a href="/" class="btn btn-primary">Go Back</a>
-                </div>`;
-                return;
-            }
+        if (!token) {
+            alert("Unauthorized access. Please log in.");
+            window.location.href = "/login";
+        }
 
+        if (!routeId) {
+            alert("⚠ Route ID Missing! Please access route details from the Routes page.");
+            window.location.href = "/";
+        }
+
+        function fetchRouteDetails() {
+            document.getElementById("loader").style.display = "block";
             fetch(`/routes/${routeId}`, {
-                headers: { "Authorization": `Bearer ${token}` }  // ✅ Send token for security
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error("Route not found");
+                headers: { 
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`,
+                    "Content-Type": "application/json"
                 }
-                return response.json();
             })
-            .then(route => {
-                document.getElementById("routeName").innerText = route.route_name;
-                document.getElementById("startPoint").innerText = route.start_point;
-                document.getElementById("endPoint").innerText = route.end_point;
-
-                // ✅ Hide loader and show content
+            .then(response => response.json())
+            .then(data => {
                 document.getElementById("loader").style.display = "none";
-                document.getElementById("routeDetails").classList.remove("d-none");
+                if (data.error) {
+                    alert(data.error);
+                    window.location.href = "/";
+                } else {
+                    document.getElementById("routeCard").style.display = "block";
+                    document.getElementById("routeName").innerText = data.route_name;
+                    document.getElementById("startPoint").innerText = data.start_point;
+                    document.getElementById("endPoint").innerText = data.end_point;
+                }
             })
             .catch(error => {
-                document.body.innerHTML = `<div class="container text-center mt-5">
-                    <h2 class="text-danger">❌ Error: ${error.message}</h2>
-                    <p>Could not retrieve route details.</p>
-                    <a href="/" class="btn btn-primary">Go Back</a>
-                </div>`;
-                console.error("Error fetching route details:", error);
+                document.getElementById("loader").style.display = "none";
+                console.error("❌ Error Fetching Route:", error);
+                alert("Failed to load route details. Please try again.");
+                window.location.href = "/";
             });
-        });
+        }
+
+        function logout() {
+            localStorage.clear();
+            alert("Logged out successfully.");
+            window.location.href = "/login";
+        }
+
+        window.onload = fetchRouteDetails;
     </script>
 
-    <!-- ✅ Bootstrap JavaScript -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

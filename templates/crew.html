@@ -24,22 +24,34 @@
             z-index: 1000;
         }
         .modal-content { padding: 20px; background: white; border-radius: 10px; width: 400px; }
+        .loader {
+            border: 8px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 8px solid #007bff;
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+            margin: 100px auto;
+        }
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
     </style>
 </head>
 <body class="bg-light">
-    <!-- ✅ Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container-fluid">
-            <a class="navbar-brand" href="/">Bus Scheduling System</a>
+            <a class="navbar-brand" href="/">🚍 Bus Scheduling System</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
+                <ul class="navbar-nav ms-auto">
                     <li class="nav-item"><a class="nav-link" href="/">🏠 Home</a></li>
                     <li class="nav-item"><a class="nav-link active" href="/crew_page">👥 Crew Management</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/routes_page">🚍 Route Management</a></li>
                     <li class="nav-item"><a class="nav-link" href="/dynamic_stop_requests">📍 Dynamic Bus Stops</a></li>
+                    <li class="nav-item"><button class="btn btn-danger btn-sm" onclick="logout()">🚪 Logout</button></li>
                 </ul>
             </div>
         </div>
@@ -55,8 +67,11 @@
             </button>
         </div>
 
+        <!-- ✅ Loader -->
+        <div id="loader" class="loader"></div>
+
         <!-- ✅ Crew Table -->
-        <div class="card p-4 mt-4 shadow">
+        <div id="crewCard" class="card p-4 mt-4 shadow" style="display: none;">
             <h3>Crew Members</h3>
             <table class="table table-bordered table-striped table-hover mt-3">
                 <thead class="table-dark">
@@ -87,47 +102,52 @@
         </div>
     </div>
 
-    <!-- ✅ Modal for Editing Crew -->
-    <div id="editCrewModal" class="modal">
-        <div class="modal-content">
-            <h5>Edit Crew Member</h5>
-            <input type="hidden" id="edit_crew_id">
-            <input type="text" id="edit_crew_name" class="form-control mb-2" placeholder="Name">
-            <input type="text" id="edit_crew_role" class="form-control mb-2" placeholder="Role">
-            <input type="text" id="edit_crew_shift" class="form-control mb-2" placeholder="Shift">
-            <input type="text" id="edit_crew_assigned_route" class="form-control mb-2" placeholder="Assigned Route">
-            <button class="btn btn-secondary" onclick="closeEditModal()">Close</button>
-            <button class="btn btn-primary" onclick="editCrew()">Save Changes</button>
-        </div>
-    </div>
-
-    <!-- ✅ JavaScript -->
     <script>
         const token = localStorage.getItem("token");
 
+        if (!token) {
+            alert("Unauthorized access. Please log in first.");
+            window.location.href = "/login";
+        }
+
         function fetchCrew() {
+            document.getElementById("loader").style.display = "block";
             fetch('/crew', {
-                headers: { "Authorization": `Bearer ${token}` }
+                headers: { 
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`,
+                    "Content-Type": "application/json"
+                }
             })
             .then(response => response.json())
             .then(data => {
+                document.getElementById("loader").style.display = "none";
                 let crewTable = document.getElementById("crewTableBody");
-                crewTable.innerHTML = data.map(member => `
-                    <tr>
-                        <td>${member.id}</td>
-                        <td>${member.name}</td>
-                        <td>${member.role}</td>
-                        <td>${member.shift}</td>
-                        <td>${member.assigned_route || "Not Assigned"}</td>
-                        <td>
-                            <button class="btn btn-warning btn-sm" onclick="showEditModal(${member.id}, '${member.name}', '${member.role}', '${member.shift}', '${member.assigned_route || ""}')">
-                                <i class="fas fa-edit"></i> Edit
-                            </button>
-                            <button class="btn btn-danger btn-sm" onclick="confirmDelete(${member.id})">
-                                <i class="fas fa-trash"></i> Delete
-                            </button>
-                        </td>
-                    </tr>`).join('');
+                if (data.length === 0) {
+                    crewTable.innerHTML = "<tr><td colspan='6' class='text-center text-muted'>No crew members found.</td></tr>";
+                } else {
+                    document.getElementById("crewCard").style.display = "block";
+                    crewTable.innerHTML = data.map(member => `
+                        <tr>
+                            <td>${member.id}</td>
+                            <td>${member.name}</td>
+                            <td>${member.role}</td>
+                            <td>${member.shift}</td>
+                            <td>${member.assigned_route || "Not Assigned"}</td>
+                            <td>
+                                <button class="btn btn-warning btn-sm" onclick="editCrew(${member.id})">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteCrew(${member.id})">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </td>
+                        </tr>`).join('');
+                }
+            })
+            .catch(error => {
+                document.getElementById("loader").style.display = "none";
+                alert("Failed to fetch crew. Please try again.");
+                console.error("❌ Network Error:", error);
             });
         }
 
@@ -143,23 +163,32 @@
             fetch('/crew', {
                 method: 'POST',
                 headers: {
-                    "Authorization": `Bearer ${token}`,
-                    'Content-Type': 'application/json'
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`,
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({ name, role, shift, assigned_route: assignedRoute })
             }).then(response => response.json())
               .then(data => { alert(data.message); fetchCrew(); closeModal(); });
         }
 
-        function confirmDelete(crewId) {
+        function deleteCrew(crewId) {
             if (confirm("Are you sure you want to delete this crew member?")) {
                 fetch(`/crew/${crewId}`, {
                     method: 'DELETE',
-                    headers: { "Authorization": `Bearer ${token}` }
+                    headers: {
+                        "Authorization": `Bearer ${localStorage.getItem("token")}`,
+                        "Content-Type": "application/json"
+                    }
                 })
                 .then(response => response.json())
                 .then(data => { alert(data.message); fetchCrew(); });
             }
+        }
+
+        function logout() {
+            localStorage.clear();
+            alert("Logged out successfully.");
+            window.location.href = "/login";
         }
 
         window.onload = fetchCrew;

@@ -49,7 +49,7 @@
         <h1 class="text-center text-primary">🚍 Route Details</h1>
         
         <!-- ✅ Loader -->
-        <div id="loader" class="loader"></div>
+        <div id="loader" class="loader" style="display: none;"></div>
 
         <!-- ✅ Route Card -->
         <div id="routeCard" class="card shadow" style="display: none;">
@@ -65,25 +65,32 @@
         const params = new URLSearchParams(window.location.search);
         const routeId = params.get("id");
 
+        // ✅ Check for Token
         if (!token) {
             alert("Unauthorized access. Please log in.");
             window.location.href = "/login";
         }
 
+        // ✅ Check for Route ID
         if (!routeId) {
-            alert("⚠ Route ID Missing! Please access route details from the Routes page.");
+            alert("⚠️ Route ID Missing! Please access route details from the Routes page.");
             window.location.href = "/";
         }
 
+        // ✅ Fetch Route Details
         function fetchRouteDetails() {
             document.getElementById("loader").style.display = "block";
             fetch(`/routes/${routeId}`, {
                 headers: { 
-                    "Authorization": `Bearer ${localStorage.getItem("token")}`,
-                    "Content-Type": "application/json"
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch route. Status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 document.getElementById("loader").style.display = "none";
                 if (data.error) {
@@ -91,7 +98,7 @@
                     window.location.href = "/";
                 } else {
                     document.getElementById("routeCard").style.display = "block";
-                    document.getElementById("routeName").innerText = data.route_name;
+                    document.getElementById("routeName").innerText = `📍 Route: ${data.route_name}`;
                     document.getElementById("startPoint").innerText = data.start_point;
                     document.getElementById("endPoint").innerText = data.end_point;
                 }

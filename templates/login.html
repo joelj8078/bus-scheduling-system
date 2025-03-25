@@ -41,22 +41,27 @@
             const username = document.getElementById("username").value.trim();
             const password = document.getElementById("password").value.trim();
             const errorMsg = document.getElementById("errorMsg");
-
+    
             if (!username || !password) {
                 errorMsg.innerText = "⚠️ Please fill in both fields.";
                 return;
             }
-
+    
             fetch('/login', {
                 method: 'POST',
-                headers: {"Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username, password })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.token) {
-                    localStorage.setItem("token", data.token);
+                    localStorage.setItem("token", data.token); // ✅ Store token properly
+                    localStorage.setItem("user_role", data.role);
+                    alert("Login successful!");
+                } else{
+                    alert(`⚠️ ${data.message}`);
                 }
+                
                 if (data.message === 'Login successful') {
                     if (data.role === 'Admin') {
                         window.location.href = '/admin';
@@ -68,21 +73,45 @@
                 } else {
                     alert(`⚠️ ${data.error || data.message}`);
                 }
-                
             })
             .catch(err => alert('⚠️ Network error. Please try again.'));
+        }
+    
+        function validateTokenAndRedirect() {
+            const token = localStorage.getItem("token");
+            console.log("🔑 Token:", token);  // ✅ Verify token exists
+            if (!token) {
+                alert("⚠️ No token found. Please log in again.");
+                window.location.href = "/login";
+                return;
+            }
 
             fetch('/protected_route', {
                 method: 'GET',
                 headers: { 
-                    "Authorization": `Bearer ${localStorage.getItem("token")}` 
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
                 }
             })
-            .then(res => res.json())
-            .then(data => console.log(data))
-            .catch(err => console.error(err));
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Token is invalid or expired. Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("✅ Token is valid:", data);
+                window.location.href = "/admin";  // Redirect based on user role
+            })
+            .catch(err => {
+                console.error("❌ Token Error:", err.message);
+                alert("⚠️ Session expired. Please log in again.");
+                localStorage.clear();
+                window.location.href = "/login";
+            });
+        }
 
-        };
     </script>
+    
 </body>
 </html>

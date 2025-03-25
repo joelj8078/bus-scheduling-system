@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash  # ✅ Import for password hashing
+from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import pytz
 
@@ -14,14 +14,13 @@ class User(db.Model):
     username = db.Column(db.String(100), nullable=False, unique=True)
     email = db.Column(db.String(150), nullable=False, unique=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(50), nullable=False)  # Admin, Driver, Passenger
+    role = db.Column(db.String(50), nullable=False)
+    stops = db.relationship('DynamicStopRequest', backref='user', lazy=True)
 
     def set_password(self, password):
-        """Hashes the password before storing it."""
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
-        """Checks the hashed password during login."""
         return check_password_hash(self.password_hash, password)
 
 # ==========================
@@ -33,6 +32,7 @@ class Route(db.Model):
     route_name = db.Column(db.String(100), nullable=False)
     start_point = db.Column(db.String(100), nullable=False)
     end_point = db.Column(db.String(100), nullable=False)
+    crew_members = db.relationship('Crew', backref='route', lazy=True)
 
 # ==========================
 # 👷 Crew Model
@@ -41,8 +41,8 @@ class Crew(db.Model):
     __tablename__ = "crew"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.String(50), nullable=False)  # Driver or Conductor
-    shift = db.Column(db.String(50), nullable=False)  # Morning, Evening, Night
+    role = db.Column(db.String(50), nullable=False)
+    shift = db.Column(db.String(50), nullable=False)
     assigned_route = db.Column(db.Integer, db.ForeignKey('routes.id'), nullable=True)
 
 # ==========================
@@ -53,8 +53,9 @@ class DynamicStopRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
-    requested_time = db.Column(db.DateTime, default=datetime.utcnow)  # ✅ Store in UTC, convert later
-    status = db.Column(db.String(20), default="Pending")  # Pending, Approved, Rejected
+    requested_time = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default="Pending")
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
     def get_requested_time_ist(self):
         """Converts stored UTC time to IST."""
@@ -66,5 +67,5 @@ class DynamicStopRequest(db.Model):
 # ==========================
 def init_db(app):
     with app.app_context():
-        db.create_all()  # ✅ Creates tables only if they don’t exist
+        db.create_all()
         print("✅ Database initialized successfully.")

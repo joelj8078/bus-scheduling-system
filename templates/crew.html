@@ -68,7 +68,7 @@
         </div>
 
         <!-- ✅ Loader -->
-        <div id="loader" class="loader"></div>
+        <div id="loader" class="loader" style="display: none;"></div>
 
         <!-- ✅ Crew Table -->
         <div id="crewCard" class="card p-4 mt-4 shadow" style="display: none;">
@@ -110,6 +110,7 @@
             window.location.href = "/login";
         }
 
+        // ✅ Fetch Crew
         function fetchCrew() {
             document.getElementById("loader").style.display = "block";
             fetch('/crew', {
@@ -118,7 +119,12 @@
                     "Content-Type": "application/json"
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Failed to fetch crew members.");
+                }
+                return response.json();
+            })
             .then(data => {
                 document.getElementById("loader").style.display = "none";
                 let crewTable = document.getElementById("crewTableBody");
@@ -134,9 +140,6 @@
                             <td>${member.shift}</td>
                             <td>${member.assigned_route || "Not Assigned"}</td>
                             <td>
-                                <button class="btn btn-warning btn-sm" onclick="editCrew(${member.id})">
-                                    <i class="fas fa-edit"></i> Edit
-                                </button>
                                 <button class="btn btn-danger btn-sm" onclick="deleteCrew(${member.id})">
                                     <i class="fas fa-trash"></i> Delete
                                 </button>
@@ -151,14 +154,27 @@
             });
         }
 
-        function showAddModal() { document.getElementById("addCrewModal").style.display = "flex"; }
-        function closeModal() { document.getElementById("addCrewModal").style.display = "none"; }
+        // ✅ Show Add Modal
+        function showAddModal() { 
+            document.getElementById("addCrewModal").style.display = "flex"; 
+        }
 
+        // ✅ Close Modal
+        function closeModal() { 
+            document.getElementById("addCrewModal").style.display = "none"; 
+        }
+
+        // ✅ Add Crew Member
         function addCrew() {
             let name = document.getElementById("crew_name").value;
             let role = document.getElementById("crew_role").value;
             let shift = document.getElementById("crew_shift").value;
             let assignedRoute = document.getElementById("crew_assigned_route").value || null;
+
+            if (!name || !role || !shift) {
+                alert("Please fill in all required fields.");
+                return;
+            }
 
             fetch('/crew', {
                 method: 'POST',
@@ -167,18 +183,17 @@
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({ name, role, shift, assigned_route: assignedRoute })
-            }).then(response => response.json())
-              .then(data => { alert(data.message); fetchCrew(); closeModal(); });
+            })
+            .then(response => response.json())
+            .then(data => { alert(data.message); fetchCrew(); closeModal(); });
         }
 
+        // ✅ Delete Crew
         function deleteCrew(crewId) {
             if (confirm("Are you sure you want to delete this crew member?")) {
                 fetch(`/crew/${crewId}`, {
                     method: 'DELETE',
-                    headers: {
-                        "Authorization": `Bearer ${localStorage.getItem("token")}`,
-                        "Content-Type": "application/json"
-                    }
+                    headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
                 })
                 .then(response => response.json())
                 .then(data => { alert(data.message); fetchCrew(); });

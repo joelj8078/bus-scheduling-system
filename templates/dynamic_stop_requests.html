@@ -88,6 +88,7 @@
         </div>
     </div>
 
+    <!-- ✅ Modal for Adding Stop Request -->
     <div id="addStopModal" class="modal">
         <div class="modal-content">
             <h5>Request a New Stop</h5>
@@ -100,33 +101,22 @@
 
     <script>
         const token = localStorage.getItem("token");
-        console.log("Token:", token);
         if (!token) {
             alert("Token not found. Please log in again.");
             window.location.href = "/login";
         }
 
+        // ✅ Fetch all stops
         function fetchStops() {
             document.getElementById("loader").style.display = "block";
             fetch('/dynamic_stops', {
                 method: 'GET',
                 headers: { 
-                    "Authorization": `Bearer ${token}`,
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`,
                 }
             })
-            .then(response => {
-                if (!response.ok) {
-                    console.error("❌ Response Status:", response.status);
-                    return response.json().then(err => { 
-                        console.error("❌ Backend Error:", err);
-                        alert("Error fetching stop requests: " + (err.msg || err.error || "Unknown error"));
-                        document.getElementById("loader").style.display = "none";
-                    });
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                console.log("✅ Response Data:", data);
                 document.getElementById("loader").style.display = "none";
                 let stopTable = document.getElementById("stopTableBody");
                 if (Array.isArray(data) && data.length === 0) {
@@ -141,20 +131,23 @@
                             <td>${stop.longitude}</td>
                             <td>${formatTimestamp(stop.requested_time)}</td>
                             <td>${stop.status}</td>
-                            <td><button class="btn btn-danger btn-sm" onclick="deleteStop(${stop.id})">Delete</button></td>
+                            <td><button class="btn btn-danger btn-sm" onclick="deleteStop(${stop.id})">🗑️ Delete</button></td>
                         </tr>`).join('');
                 } else {
-                    console.error("❌ Unexpected Data Type:", data);
+                    alert("Unexpected response format.");
                 }
             })
-            .catch(err => console.error(`❌ Fetch Error: ${err}`));
+            .catch(err => {
+                document.getElementById("loader").style.display = "none";
+                alert("Failed to fetch stop requests. Try again.");
+                console.error("❌ Fetch Error:", err);
+            });
         }
 
-
+        // ✅ Add a new stop request
         function addStop() {
             let latitude = parseFloat(document.getElementById("stop_latitude").value);
             let longitude = parseFloat(document.getElementById("stop_longitude").value);
-            let requested_time = new Date().toISOString();
 
             if (isNaN(latitude) || isNaN(longitude)) {
                 alert("Please provide valid latitude and longitude.");
@@ -164,31 +157,40 @@
             fetch('/dynamic_stops', {
                 method: 'POST',
                 headers: { 
-                    "Authorization": `Bearer ${token}`, 
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`, 
                     "Content-Type": "application/json" 
                 },
-                body: JSON.stringify({ latitude, longitude, requested_time })
+                body: JSON.stringify({ latitude, longitude })
             })
             .then(res => res.json())
-            .then(data => { alert(data.message); fetchStops(); closeModal(); })
+            .then(data => { 
+                alert(data.message); 
+                fetchStops(); 
+                closeModal(); 
+            })
             .catch(err => alert(`Error: ${err.message}`));
         }
 
+        // ✅ Delete a stop request
         function deleteStop(id) {
-            fetch(`/dynamic_stops/${id}`, { 
-                method: 'DELETE', 
-                headers: { "Authorization": `Bearer ${token}` } 
-            })
-            .then(res => res.json())
-            .then(data => { alert(data.message); fetchStops(); });
+            if (confirm("Are you sure you want to delete this stop request?")) {
+                fetch(`/dynamic_stops/${id}`, { 
+                    method: 'DELETE', 
+                    headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` } 
+                })
+                .then(res => res.json())
+                .then(data => { alert(data.message); fetchStops(); });
+            }
+        }
+
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
         }
 
         function showAddModal() { document.getElementById("addStopModal").style.display = "flex"; }
         function closeModal() { document.getElementById("addStopModal").style.display = "none"; }
-        function logout() { 
-            console.log("🔑 Token before logout:", localStorage.getItem("token"));
-            localStorage.clear(); 
-            window.location.href = "/login"; }
+        function logout() { localStorage.clear(); window.location.href = "/login"; }
 
         window.onload = fetchStops;
     </script>

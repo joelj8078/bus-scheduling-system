@@ -65,13 +65,30 @@ def manage_routes():
                 "end_point": route.end_point
             } for route in routes]), 200
 
-        data = request.get_json(silent=True)
-        if not data:
-            return jsonify({"error": "Invalid or missing JSON payload"}), 400
+        if not request.is_json:
+            return jsonify({"error": "Request must be JSON"}), 415
 
+        data = request.get_json()
         if not all(k in data for k in ('route_name', 'start_point', 'end_point')):
             return jsonify({"error": "Missing required fields"}), 422
 
+        # Check for duplicate route name
+        duplicate_name = Route.query.filter_by(route_name=data['route_name']).first()
+        # Check for duplicate start and end point
+        duplicate_start_end = Route.query.filter_by(
+            start_point=data['start_point'],
+            end_point=data['end_point']
+        ).first()
+
+        # If either condition is true, reject the addition
+        if duplicate_name and duplicate_start_end:
+            return jsonify({"error": "A route with the same name and same start & end points already exists."}), 409
+        elif duplicate_name:
+            return jsonify({"error": "A route with the same name already exists."}), 409
+        elif duplicate_start_end:
+            return jsonify({"error": "A route with the same start and end points already exists."}), 409
+
+        # If no duplicates, create a new route
         new_route = Route(
             route_name=data['route_name'],
             start_point=data['start_point'],
@@ -79,7 +96,7 @@ def manage_routes():
         )
         db.session.add(new_route)
         db.session.commit()
-        return jsonify({"message": "Route added!"}), 201
+        return jsonify({"message": "✅ Route added successfully!"}), 201
 
     except Exception as e:
         traceback.print_exc()
@@ -113,23 +130,33 @@ def update_or_delete_route(route_id):
         return jsonify({"error": str(e)}), 500
 
 # ===========================
-# 👥 Crew Management API
+# 👥 Crew Management API (Fixed)
 # ===========================
 @app.route('/crew', methods=['GET', 'POST'])
 def manage_crew():
     try:
         if request.method == 'GET':
             crew = Crew.query.all()
-            return jsonify([member.serialize() for member in crew]), 200
+            # Manual serialization like routes
+            return jsonify([{
+                "id": member.id,
+                "name": member.name,
+                "role": member.role,
+                "shift": member.shift,
+                "assigned_route": member.assigned_route
+            } for member in crew]), 200
 
-        data = request.get_json(silent=True)
-        if not data:
-            return jsonify({"error": "Invalid or missing JSON payload"}), 400
+        if not request.is_json:
+            return jsonify({"error": "Request must be JSON"}), 415
+
+        data = request.get_json()
+        if not all(k in data for k in ('name', 'role', 'shift', 'assigned_route')):
+            return jsonify({"error": "Missing required fields"}), 422
 
         new_crew = Crew(**data)
         db.session.add(new_crew)
         db.session.commit()
-        return jsonify({"message": "Crew member added!"}), 201
+        return jsonify({"message": "✅ Crew member added successfully!"}), 201
 
     except Exception as e:
         traceback.print_exc()
@@ -171,7 +198,12 @@ def manage_stops():
     try:
         if request.method == 'GET':
             stops = DynamicStopRequest.query.all()
-            return jsonify([stop.serialize() for stop in stops]), 200
+            return jsonify([{
+                "id": stop.id,
+                "latitude": stop.latitude,
+                "longitude": stop.longitude,
+                "status": stop.status
+            } for stop in stops]), 200
 
         data = request.get_json(silent=True)
         if not data:
@@ -189,7 +221,7 @@ def manage_stops():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-
+    
 @app.route('/dynamic_stops/<int:stop_id>', methods=['PUT', 'DELETE'])
 def update_or_delete_stop(stop_id):
     try:

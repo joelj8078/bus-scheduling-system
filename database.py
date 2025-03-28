@@ -17,7 +17,7 @@ class User(db.Model):
     role = db.Column(db.String(50), nullable=False)
     stops = db.relationship('DynamicStopRequest', backref='user', lazy=True)
 
-    def set_password(self, password):
+    def set_password(self, password):                                               
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):

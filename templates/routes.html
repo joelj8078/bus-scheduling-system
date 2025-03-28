@@ -73,10 +73,7 @@
     // ✅ Fetch Routes from Backend
     function fetchRoutes() {
         fetch('/routes')
-            .then(response => {
-                if (!response.ok) throw new Error("Failed to fetch routes.");
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 const tbody = document.getElementById("routeTableBody");
                 if (data.length === 0) {
@@ -98,7 +95,7 @@
                         </tr>`).join('');
                 }
             })
-            .catch(err => alert("⚠️ " + err.message));
+            .catch(err => alert("⚠️ Error fetching routes."));
     }
 
     // ✅ Show Modal for Adding New Route
@@ -148,11 +145,17 @@
         })
         .then(response => response.json())
         .then(data => {
-            alert(data.message || "✅ Success");
-            fetchRoutes();
-            closeModal();
+            if (data.error && data.error.includes("duplicate")) {
+                alert("⚠️ Route with this name already exists.");
+            } else if (data.error) {
+                alert(`⚠️ ${data.error}`);
+            } else {
+                alert("✅ Route saved successfully.");
+                fetchRoutes();
+                closeModal();
+            }
         })
-        .catch(err => alert("⚠️ Failed to save route."));
+        .catch(err => alert("⚠️ Error while saving route."));
     }
 
     // ✅ Delete Route
@@ -181,4 +184,3 @@
 
 </body>
 </html>
-

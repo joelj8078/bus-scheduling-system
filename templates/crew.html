@@ -3,198 +3,194 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crew Management</title>
+    <title>🚌 Crew Management</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* ✅ Basic Styles */
+        body { background-color: #f8f9fa; padding: 20px; }
+        .modal { 
+            display: none; position: fixed; top: 0; left: 0; 
+            width: 100%; height: 100%; 
+            background: rgba(0, 0, 0, 0.5); 
+            justify-content: center; align-items: center; z-index: 1000; 
+        }
+        .modal-content { 
+            background: white; padding: 20px; 
+            border-radius: 10px; width: 400px; 
+        }
+        .modal.show { display: flex !important; }
+        .btn-close { float: right; }
+    </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <h2>👥 Crew Management</h2>
 
-        <button class="btn btn-primary mb-3" onclick="openAddCrewModal()">➕ Add Crew</button>
-        <table class="table table-bordered">
-            <thead class="table-dark">
-                <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Role</th>
-                    <th>Shift</th>
-                    <th>Route</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="crewTableBody"></tbody>
-        </table>
-    </div>
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">🚌 Crew Management</h2>
+    <button class="btn btn-primary mb-3" onclick="showAddModal()">➕ Add Crew</button>
+    
+    <table class="table table-bordered table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Contact Number</th>
+                <th>Assigned Route ID</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="crewTableBody"></tbody>
+    </table>
+</div>
 
-    <!-- Add Crew Modal -->
-    <div class="modal fade" id="addCrewModal" tabindex="-1" aria-labelledby="addCrewModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addCrewModalLabel">➕ Add Crew Member</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="addCrewForm">
-                        <div class="mb-3">
-                            <label for="name" class="form-label">Name</label>
-                            <input type="text" class="form-control" id="name" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="role" class="form-label">Role</label>
-                            <input type="text" class="form-control" id="role" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="shift" class="form-label">Shift</label>
-                            <input type="text" class="form-control" id="shift" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="assignedRoute" class="form-label">Assigned Route</label>
-                            <input type="text" class="form-control" id="assignedRoute">
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">Submit</button>
-                    </form>
-                </div>
-            </div>
+<!-- ✅ Add/Edit Modal -->
+<div id="crewModal" class="modal">
+    <div class="modal-content">
+        <button class="btn-close btn btn-danger btn-sm mb-2" onclick="closeModal()">✖️</button>
+        <h4 id="modalTitle">Add Crew</h4>
+        <input type="hidden" id="crew_id">
+        
+        <div class="mb-3">
+            <label for="name" class="form-label">Name</label>
+            <input type="text" id="name" class="form-control" placeholder="Enter Name">
         </div>
-    </div>
 
-    <!-- Edit Crew Modal -->
-    <div class="modal fade" id="editCrewModal" tabindex="-1" aria-labelledby="editCrewModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editCrewModalLabel">✏️ Edit Crew Member</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="editCrewForm">
-                        <input type="hidden" id="editCrewId">
-                        <div class="mb-3">
-                            <label for="editName" class="form-label">Name</label>
-                            <input type="text" class="form-control" id="editName" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editRole" class="form-label">Role</label>
-                            <input type="text" class="form-control" id="editRole" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editShift" class="form-label">Shift</label>
-                            <input type="text" class="form-control" id="editShift" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editAssignedRoute" class="form-label">Assigned Route</label>
-                            <input type="text" class="form-control" id="editAssignedRoute">
-                        </div>
-                        <button type="submit" class="btn btn-success w-100">Update</button>
-                    </form>
-                </div>
-            </div>
+        <div class="mb-3">
+            <label for="role" class="form-label">Role</label>
+            <input type="text" id="role" class="form-control" placeholder="Enter Role">
         </div>
+
+        <div class="mb-3">
+            <label for="contact_number" class="form-label">Contact Number</label>
+            <input type="text" id="contact_number" class="form-control" placeholder="Enter Contact Number">
+        </div>
+
+        <div class="mb-3">
+            <label for="assigned_route" class="form-label">Assigned Route ID</label>
+            <input type="text" id="assigned_route" class="form-control" placeholder="Enter Assigned Route ID">
+        </div>
+
+        <button class="btn btn-success" onclick="saveCrew()">✅ Save</button>
     </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Fetch crew data on page load
-        window.onload = fetchCrew;
-
-        function fetchCrew() {
-            fetch('/crew')
-                .then(res => res.json())
-                .then(data => {
-                    const tableBody = document.getElementById("crewTableBody");
-                    const crewList = Array.isArray(data) ? data : data.crew || [];
-
-                    if (crewList.length === 0) {
-                        tableBody.innerHTML = `<tr><td colspan="6" class="text-center">No crew members found.</td></tr>`;
-                        return;
-                    }
-                    tableBody.innerHTML = crewList.map(member => `
+<script>
+    // ✅ Fetch Crew from Backend
+    function fetchCrew() {
+        fetch('/crew')
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.getElementById("crewTableBody");
+                if (data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No crew members found.</td></tr>`;
+                } else {
+                    tbody.innerHTML = data.map(crew => `
                         <tr>
-                            <td>${member.id}</td>
-                            <td>${member.name}</td>
-                            <td>${member.role}</td>
-                            <td>${member.shift}</td>
-                            <td>${member.assigned_route || "None"}</td>
+                            <td>${crew.id}</td>
+                            <td>${crew.name}</td>
+                            <td>${crew.role}</td>
+                            <td>${crew.contact_number}</td>
+                            <td>${crew.assigned_route}</td>
                             <td>
-                                <button class="btn btn-warning btn-sm" onclick="openEditCrewModal(${member.id})">✏️ Edit</button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteCrew(${member.id})">🗑️ Delete</button>
+                                <button class="btn btn-warning btn-sm" 
+                                        onclick="showEditModal(${crew.id}, '${crew.name}', '${crew.role}', '${crew.contact_number}', '${crew.assigned_route}')">
+                                    ✏️ Edit
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteCrew(${crew.id})">🗑️ Delete</button>
                             </td>
                         </tr>`).join('');
-                })
-                .catch(err => alert('⚠️ Failed to fetch crew data: ' + err));
+                }
+            })
+            .catch(err => alert("⚠️ Error fetching crew."));
+    }
+
+    // ✅ Show Modal for Adding New Crew
+    function showAddModal() {
+        document.getElementById("modalTitle").innerText = "➕ Add New Crew";
+        document.getElementById("crew_id").value = "";
+        document.getElementById("name").value = "";
+        document.getElementById("role").value = "";
+        document.getElementById("contact_number").value = "";
+        document.getElementById("assigned_route").value = "";
+        document.getElementById("crewModal").classList.add("show");
+    }
+
+    // ✅ Show Modal for Editing Crew
+    function showEditModal(id, name, role, contact_number, assigned_route) {
+        document.getElementById("modalTitle").innerText = "✏️ Edit Crew";
+        document.getElementById("crew_id").value = id;
+        document.getElementById("name").value = name;
+        document.getElementById("role").value = role;
+        document.getElementById("contact_number").value = contact_number;
+        document.getElementById("assigned_route").value = assigned_route;
+        document.getElementById("crewModal").classList.add("show");
+    }
+
+    // ✅ Close Modal
+    function closeModal() {
+        document.getElementById("crewModal").classList.remove("show");
+    }
+
+    // ✅ Save Crew (Add or Update)
+    function saveCrew() {
+        const id = document.getElementById("crew_id").value;
+        const name = document.getElementById("name").value.trim();
+        const role = document.getElementById("role").value.trim();
+        const contact_number = document.getElementById("contact_number").value.trim();
+        const assigned_route = document.getElementById("assigned_route").value.trim();
+
+        if (!name || !role || !contact_number || !assigned_route) {
+            alert("⚠️ Please fill in all fields.");
+            return;
         }
 
-        // Add Crew
-        document.getElementById('addCrewForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const name = document.getElementById('name').value.trim();
-            const role = document.getElementById('role').value.trim();
-            const shift = document.getElementById('shift').value.trim();
-            const assignedRoute = document.getElementById('assignedRoute').value.trim();
-
-            fetch('/crew', {
-                method: 'POST',
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, role, shift, assigned_route: assignedRoute })
-            })
-            .then(() => {
-                alert("✅ Crew member added successfully!");
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? `/crew/${id}` : '/crew';
+        
+        fetch(url, {
+            method: method,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, role, contact_number, assigned_route })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error && data.error.includes("duplicate")) {
+                alert("⚠️ Crew member with this name already exists.");
+            } else if (data.error) {
+                alert(`⚠️ ${data.error}`);
+            } else {
+                alert("✅ Crew member saved successfully.");
                 fetchCrew();
-            })
-            .catch(err => alert("⚠️ " + err.message));
-        });
-
-        // Open Edit Modal
-        function openEditCrewModal(id) {
-            fetch(`/crew/${id}`)
-                .then(res => res.json())
-                .then(data => {
-                    document.getElementById('editCrewId').value = data.id;
-                    document.getElementById('editName').value = data.name;
-                    document.getElementById('editRole').value = data.role;
-                    document.getElementById('editShift').value = data.shift;
-                    document.getElementById('editAssignedRoute').value = data.assigned_route || '';
-                    const modal = new bootstrap.Modal(document.getElementById('editCrewModal'));
-                    modal.show();
-                });
-        }
-
-        // Update Crew
-        document.getElementById('editCrewForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const id = document.getElementById('editCrewId').value;
-            const updatedData = {
-                name: document.getElementById('editName').value,
-                role: document.getElementById('editRole').value,
-                shift: document.getElementById('editShift').value,
-                assigned_route: document.getElementById('editAssignedRoute').value,
-            };
-
-            fetch(`/crew/${id}`, {
-                method: 'PUT',
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(updatedData),
-            })
-            .then(() => {
-                alert("✅ Crew member updated successfully!");
-                fetchCrew();
-            })
-            .catch(err => alert("⚠️ " + err.message));
-        });
-
-        // Delete Crew
-        function deleteCrew(id) {
-            if (confirm("❌ Are you sure you want to delete this crew member?")) {
-                fetch(`/crew/${id}`, { method: 'DELETE' })
-                .then(() => {
-                    alert("✅ Crew member deleted successfully!");
-                    fetchCrew();
-                })
-                .catch(err => alert("⚠️ " + err.message));
+                closeModal();
             }
+        })
+        .catch(err => alert("⚠️ Error while saving crew."));
+    }
+
+    // ✅ Delete Crew
+    function deleteCrew(id) {
+        if (confirm("Are you sure you want to delete this crew member?")) {
+            fetch(`/crew/${id}`, {
+                method: 'DELETE',
+                headers: { "Content-Type": "application/json" }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(`⚠️ ${data.error}`);
+                } else {
+                    alert("✅ Crew member deleted.");
+                    fetchCrew();
+                }
+            })
+            .catch(err => alert("⚠️ Failed to delete crew member."));
         }
-    </script>
+    }
+
+    // ✅ Initial Fetch
+    window.onload = fetchCrew;
+</script>
+
 </body>
 </html>

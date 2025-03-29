@@ -137,37 +137,60 @@ def manage_crew():
     try:
         if request.method == 'GET':
             crew = Crew.query.all()
-            # Manual serialization like routes
             return jsonify([{
                 "id": member.id,
                 "name": member.name,
                 "role": member.role,
                 "shift": member.shift,
+                "contact_number": member.contact_number,
                 "assigned_route": member.assigned_route
             } for member in crew]), 200
 
-        if not request.is_json:
-            return jsonify({"error": "Request must be JSON"}), 415
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({"error": "Missing JSON payload"}), 400
 
-        data = request.get_json()
-        if not all(k in data for k in ('name', 'role', 'shift', 'assigned_route')):
-            return jsonify({"error": "Missing required fields"}), 422
+        # Check for missing fields
+        required_fields = ['name', 'role', 'shift', 'contact_number', 'assigned_route']
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            return jsonify({"error": f"Missing fields: {', '.join(missing_fields)}"}), 422
 
-        new_crew = Crew(**data)
+        # Debugging Data
+        print(f"🟡 Received Crew Data: {data}")
+
+        new_crew = Crew(
+            name=data['name'],
+            role=data['role'],
+            shift=data['shift'],
+            contact_number=data['contact_number'],  
+            assigned_route=data['assigned_route']
+        )
         db.session.add(new_crew)
         db.session.commit()
         return jsonify({"message": "✅ Crew member added successfully!"}), 201
 
     except Exception as e:
+        db.session.rollback()
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-
-@app.route('/crew/<int:crew_id>', methods=['PUT', 'DELETE'])
-def update_or_delete_crew(crew_id):
+    
+@app.route('/crew/<int:crew_id>', methods=['GET', 'PUT', 'DELETE'])
+def manage_single_crew(crew_id):
     try:
         crew_member = Crew.query.get(crew_id)
         if not crew_member:
             return jsonify({"error": "Crew member not found"}), 404
+
+        if request.method == 'GET':
+            return jsonify({
+                "id": crew_member.id,
+                "name": crew_member.name,
+                "role": crew_member.role,
+                "shift": crew_member.shift,
+                "contact_number": crew_member.contact_number,
+                "assigned_route": crew_member.assigned_route
+            }), 200
 
         if request.method == 'PUT':
             data = request.get_json(silent=True)
@@ -177,78 +200,117 @@ def update_or_delete_crew(crew_id):
             crew_member.name = data.get('name', crew_member.name)
             crew_member.role = data.get('role', crew_member.role)
             crew_member.shift = data.get('shift', crew_member.shift)
+            crew_member.contact_number = data.get('contact_number', crew_member.contact_number)
             crew_member.assigned_route = data.get('assigned_route', crew_member.assigned_route)
             db.session.commit()
-            return jsonify({"message": "Crew member updated!"}), 200
+            return jsonify({"message": "✅ Crew member updated!"}), 200
 
         if request.method == 'DELETE':
             db.session.delete(crew_member)
             db.session.commit()
-            return jsonify({"message": "Crew member deleted!"}), 200
+            return jsonify({"message": "✅ Crew member deleted!"}), 200
 
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-# ===========================
-# 🚌 Dynamic Stop Requests
-# ===========================
-@app.route('/dynamic_stops', methods=['GET', 'POST'])
-def manage_stops():
+
+# ===============================
+# 🔍 View All Dynamic Stop Requests
+# ===============================
+@app.route('/dynamic-stop-requests', methods=['GET'])
+def view_dynamic_stop_requests():
     try:
-        if request.method == 'GET':
-            stops = DynamicStopRequest.query.all()
-            return jsonify([{
-                "id": stop.id,
-                "latitude": stop.latitude,
-                "longitude": stop.longitude,
-                "status": stop.status
-            } for stop in stops]), 200
+        requests = DynamicStopRequest.query.all()
+        data = []
+        for req in requests:
+            data.append({
+                'id': req.id,
+                'latitude': req.latitude,
+                'longitude': req.longitude,
+                'requested_time': req.get_requested_time_ist(),  # Convert to IST
+                'status': req.status,
+                'user_id': req.user_id,
+                'username': req.user.username if req.user else "Unknown"
+            })
+        return render_template('dynamic_stop_requests.html', dynamic_requests=data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
-        data = request.get_json(silent=True)
-        if not data:
-            return jsonify({"error": "Invalid or missing JSON payload"}), 400
+# ===================================
+# ➕ Add a New Dynamic Stop Request
+# ===================================
+@app.route('/add-dynamic-stop-request', methods=['POST'])
+def add_dynamic_stop_request():
+    try:
+        data = request.get_json()
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
+        user_id = data.get('user_id')
+        
+        # Validate required fields
+        if not latitude or not longitude or not user_id:
+            return jsonify({'error': 'Latitude, Longitude, and User ID are required.'}), 400
 
-        new_stop = DynamicStopRequest(
-            latitude=float(data['latitude']),
-            longitude=float(data['longitude']),
-            status=data.get('status', 'Pending')
+        # Check if user exists
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found.'}), 404
+
+        # Create new dynamic stop request
+        new_request = DynamicStopRequest(
+            latitude=latitude,
+            longitude=longitude,
+            user_id=user_id,
+            requested_time=datetime.utcnow()
         )
-        db.session.add(new_stop)
+        db.session.add(new_request)
         db.session.commit()
-        return jsonify({"message": "Stop request added!"}), 201
-
+        return jsonify({'message': 'Dynamic stop request added successfully.'}), 201
     except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-    
-@app.route('/dynamic_stops/<int:stop_id>', methods=['PUT', 'DELETE'])
-def update_or_delete_stop(stop_id):
+        return jsonify({'error': str(e)}), 500
+
+# ===================================
+# ✏️ Edit Dynamic Stop Request
+# ===================================
+@app.route('/edit-dynamic-stop-request/<int:request_id>', methods=['PUT'])
+def edit_dynamic_stop_request(request_id):
     try:
-        stop = DynamicStopRequest.query.get(stop_id)
-        if not stop:
-            return jsonify({"error": "Stop request not found"}), 404
-
-        if request.method == 'PUT':
-            data = request.get_json(silent=True)
-            if not data:
-                return jsonify({"error": "Invalid or missing JSON payload"}), 400
-
-            stop.latitude = float(data.get('latitude', stop.latitude))
-            stop.longitude = float(data.get('longitude', stop.longitude))
-            stop.status = data.get('status', stop.status)
-            db.session.commit()
-            return jsonify({"message": "Stop request updated!"}), 200
-
-        if request.method == 'DELETE':
-            db.session.delete(stop)
-            db.session.commit()
-            return jsonify({"message": "Stop request deleted!"}), 200
-
+        data = request.get_json()
+        req = DynamicStopRequest.query.get(request_id)
+        
+        if not req:
+            return jsonify({'error': 'Dynamic stop request not found.'}), 404
+        
+        # Update fields if present in request
+        if 'latitude' in data:
+            req.latitude = data['latitude']
+        if 'longitude' in data:
+            req.longitude = data['longitude']
+        if 'status' in data:
+            req.status = data['status']
+        
+        db.session.commit()
+        return jsonify({'message': 'Dynamic stop request updated successfully.'}), 200
     except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
 
+# ===================================
+# 🗑️ Delete Dynamic Stop Request
+# ===================================
+@app.route('/delete-dynamic-stop-request/<int:request_id>', methods=['DELETE'])
+def delete_dynamic_stop_request(request_id):
+    try:
+        req = DynamicStopRequest.query.get(request_id)
+        if not req:
+            return jsonify({'error': 'Dynamic stop request not found.'}), 404
+
+        db.session.delete(req)
+        db.session.commit()
+        return jsonify({'message': 'Dynamic stop request deleted successfully.'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
 # ✅ Run the App
 if __name__ == "__main__":
     app.run(debug=True)

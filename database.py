@@ -43,6 +43,7 @@ class Crew(db.Model):
     name = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(50), nullable=False)
     shift = db.Column(db.String(50), nullable=False)
+    contact_number = db.Column(db.String(15), nullable=False)
     assigned_route = db.Column(db.Integer, db.ForeignKey('routes.id'), nullable=True)
 
 # ==========================

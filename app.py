@@ -2,9 +2,10 @@ from flask import Flask, request, jsonify, render_template, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from config import DATABASE_URL
-from database import db, init_db, Route, Crew, DynamicStopRequest
+from database import db, init_db, Route, Crew, DynamicStopRequest, User
 import pytz
 import traceback
+from datetime import datetime, timezone
 
 # Set timezone
 DESIRED_TZ = pytz.timezone("Asia/Kolkata")
@@ -215,102 +216,89 @@ def manage_single_crew(crew_id):
         return jsonify({"error": str(e)}), 500
 
 
-# ===============================
-# 🔍 View All Dynamic Stop Requests
-# ===============================
-@app.route('/dynamic-stop-requests', methods=['GET'])
-def view_dynamic_stop_requests():
+# ===========================
+# 🚌 Dynamic Stop Request API
+# ===========================
+@app.route('/dynamic_requests', methods=['GET', 'POST'])
+def manage_dynamic_stop_requests():
     try:
-        requests = DynamicStopRequest.query.all()
-        data = []
-        for req in requests:
-            data.append({
+        if request.method == 'GET':
+            requests = DynamicStopRequest.query.all()
+            return jsonify([{
                 'id': req.id,
                 'latitude': req.latitude,
                 'longitude': req.longitude,
-                'requested_time': req.get_requested_time_ist(),  # Convert to IST
+                'requested_time': req.get_requested_time_ist(),
                 'status': req.status,
                 'user_id': req.user_id,
                 'username': req.user.username if req.user else "Unknown"
-            })
-        return render_template('dynamic_stop_requests.html', dynamic_requests=data)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+            } for req in requests]), 200
 
-# ===================================
-# ➕ Add a New Dynamic Stop Request
-# ===================================
-@app.route('/add-dynamic-stop-request', methods=['POST'])
-def add_dynamic_stop_request():
-    try:
+        if not request.is_json:
+            return jsonify({'error': 'Request must be JSON'}), 415
+
         data = request.get_json()
-        latitude = data.get('latitude')
-        longitude = data.get('longitude')
-        user_id = data.get('user_id')
-        
-        # Validate required fields
-        if not latitude or not longitude or not user_id:
-            return jsonify({'error': 'Latitude, Longitude, and User ID are required.'}), 400
+        if not all(k in data for k in ('latitude', 'longitude', 'user_id')):
+            return jsonify({'error': 'Missing required fields (latitude, longitude, user_id)'}), 422
 
-        # Check if user exists
-        user = User.query.get(user_id)
+        user = User.query.get(data['user_id'])
         if not user:
             return jsonify({'error': 'User not found.'}), 404
 
-        # Create new dynamic stop request
         new_request = DynamicStopRequest(
-            latitude=latitude,
-            longitude=longitude,
-            user_id=user_id,
-            requested_time=datetime.utcnow()
+            latitude=data['latitude'],
+            longitude=data['longitude'],
+            user_id=data['user_id'],
+            requested_time=datetime.now(timezone.utc),
+            status="Pending"
         )
         db.session.add(new_request)
         db.session.commit()
-        return jsonify({'message': 'Dynamic stop request added successfully.'}), 201
+        return jsonify({"message": "✅ Dynamic stop request added successfully.", "id": new_request.id}), 201
+
     except Exception as e:
+        db.session.rollback()
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
-# ===================================
-# ✏️ Edit Dynamic Stop Request
-# ===================================
-@app.route('/edit-dynamic-stop-request/<int:request_id>', methods=['PUT'])
-def edit_dynamic_stop_request(request_id):
-    try:
-        data = request.get_json()
-        req = DynamicStopRequest.query.get(request_id)
-        
-        if not req:
-            return jsonify({'error': 'Dynamic stop request not found.'}), 404
-        
-        # Update fields if present in request
-        if 'latitude' in data:
-            req.latitude = data['latitude']
-        if 'longitude' in data:
-            req.longitude = data['longitude']
-        if 'status' in data:
-            req.status = data['status']
-        
-        db.session.commit()
-        return jsonify({'message': 'Dynamic stop request updated successfully.'}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# ===================================
-# 🗑️ Delete Dynamic Stop Request
-# ===================================
-@app.route('/delete-dynamic-stop-request/<int:request_id>', methods=['DELETE'])
-def delete_dynamic_stop_request(request_id):
+@app.route('/dynamic_requests/<int:request_id>', methods=['PUT', 'DELETE'])
+def manage_single_dynamic_stop_request(request_id):
     try:
         req = DynamicStopRequest.query.get(request_id)
         if not req:
             return jsonify({'error': 'Dynamic stop request not found.'}), 404
 
-        db.session.delete(req)
-        db.session.commit()
-        return jsonify({'message': 'Dynamic stop request deleted successfully.'}), 200
+        if request.method == 'PUT':
+            data = request.get_json(silent=True)
+            if not data:
+                return jsonify({'error': 'Invalid or missing JSON payload'}), 400
+
+            req.latitude = data.get('latitude', req.latitude)
+            req.longitude = data.get('longitude', req.longitude)
+            req.status = data.get('status', req.status)
+
+            if 'requested_time' in data:
+                return jsonify({'error': 'requested_time cannot be modified manually'}), 400
+                
+            if 'user_id' in data:
+                user = User.query.get(data['user_id'])
+                if user:
+                    req.user_id = data['user_id']
+                else:
+                    return jsonify({'error': 'User not found.'}), 404
+
+            db.session.commit()
+            return jsonify({'message': '✅ Dynamic stop request updated successfully.'}), 200
+
+        if request.method == 'DELETE':
+            db.session.delete(req)
+            db.session.commit()
+            return jsonify({'message': '✅ Dynamic stop request deleted successfully.'}), 200
+
     except Exception as e:
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
-    
+
 # ✅ Run the App
 if __name__ == "__main__":
     app.run(debug=True)

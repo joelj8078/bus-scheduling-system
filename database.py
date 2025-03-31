@@ -1,6 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timezone
 import pytz
 
 db = SQLAlchemy()
@@ -54,14 +54,20 @@ class DynamicStopRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
-    requested_time = db.Column(db.DateTime, default=datetime.utcnow)
+    requested_time = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     status = db.Column(db.String(20), default="Pending")
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
+
     def get_requested_time_ist(self):
         """Converts stored UTC time to IST."""
-        utc_time = self.requested_time.replace(tzinfo=pytz.utc)
-        return utc_time.astimezone(pytz.timezone("Asia/Kolkata")).strftime('%Y-%m-%d %H:%M:%S')
+        if self.requested_time:
+            # Ensure UTC time is correctly stored
+            utc_time = self.requested_time.replace(tzinfo=timezone.utc)
+            ist_time = utc_time.astimezone(pytz.timezone("Asia/Kolkata"))
+            # Convert UTC to IST
+            return ist_time.strftime('%Y-%m-%d %H:%M:%S')  # Format time properly
+        return None
 
 # ==========================
 # 🗄️ Database Initialization

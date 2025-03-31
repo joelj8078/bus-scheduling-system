@@ -84,11 +84,6 @@
         </div>
 
         <div class="mb-3">
-            <label for="requested_time" class="form-label">Requested Time</label>
-            <input type="datetime-local" id="requested_time" class="form-control">
-        </div>
-
-        <div class="mb-3">
             <label for="status" class="form-label">Status</label>
             <select id="status" class="form-select">
                 <option value="Pending">Pending</option>
@@ -143,19 +138,17 @@
         document.getElementById("stop_id").value = "";
         document.getElementById("latitude").value = "";
         document.getElementById("longitude").value = "";
-        document.getElementById("requested_time").value = "";
         document.getElementById("status").value = "Pending";
         document.getElementById("user_id").value = "";
         document.getElementById("stopModal").classList.add("show");
     }
 
     // ✅ Show Modal for Editing
-    function showEditModal(id, latitude, longitude, requested_time, status, user_id) {
+    function showEditModal(id, latitude, longitude, status, user_id) {
         document.getElementById("modalTitle").innerText = "✏️ Edit Stop Request";
         document.getElementById("stop_id").value = id;
         document.getElementById("latitude").value = latitude;
         document.getElementById("longitude").value = longitude;
-        document.getElementById("requested_time").value = requested_time;
         document.getElementById("status").value = status;
         document.getElementById("user_id").value = user_id;
         document.getElementById("stopModal").classList.add("show");
@@ -185,11 +178,10 @@
         let id = document.getElementById('stop_id').value;  // ✅ Corrected hidden field ID
         let latitude = document.getElementById('latitude').value;
         let longitude = document.getElementById('longitude').value;
-        let requestedTime = document.getElementById('requested_time').value;
         let status = document.getElementById('status').value;
         let user_id = document.getElementById('user_id').value;  // ✅ Ensure it's retrieved correctly
 
-        if (!latitude || !longitude || !requestedTime || !user_id) {
+        if (!latitude || !longitude || !user_id) {
             alert("⚠️ Please fill in all fields.");
             return;
         }
@@ -197,7 +189,6 @@
         let requestData = {
             latitude: latitude,
             longitude: longitude,
-            requested_time: requestedTime ? new Date(requestedTime).toISOString() : null,
             status: status,
             user_id: parseInt(user_id)  // ✅ Ensure `user_id` is an integer
         };

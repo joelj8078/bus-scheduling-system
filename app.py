@@ -6,6 +6,8 @@ from database import db, init_db, Route, Crew, DynamicStopRequest, User
 import pytz
 import traceback
 from datetime import datetime, timezone
+import random
+import time 
 
 # Set timezone
 DESIRED_TZ = pytz.timezone("Asia/Kolkata")
@@ -298,6 +300,21 @@ def manage_single_dynamic_stop_request(request_id):
     except Exception as e:
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+    
+# Dummy bus data (simulating real-time updates)
+bus_data = [
+    {"id": 1, "latitude": 12.9716, "longitude": 77.5946},  # Initial location (Bangalore)
+    {"id": 2, "latitude": 12.9756, "longitude": 77.5986},  # Another bus
+]
+
+@app.route('/bus_locations', methods=['GET'])
+def get_bus_locations():
+    """Simulates real-time bus movement."""
+    for bus in bus_data:
+        # Randomly adjust latitude and longitude to simulate movement
+        bus["latitude"] += (random.uniform(-0.0005, 0.0005))
+        bus["longitude"] += (random.uniform(-0.0005, 0.0005))
+    return jsonify(bus_data)
 
 # ✅ Run the App
 if __name__ == "__main__":

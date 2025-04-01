@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realistic Route Finder</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #map { height: 500px; margin-top: 10px; }
+        .info { margin-top: 10px; }
+        .controls { margin-top: 10px; }
+        .controls input, .controls select { margin: 5px; }
+    </style>
+</head>
+<body>
+    <h2>Find Best Route</h2>
+
+    <div class="controls">
+        <label>Start: <input id="start" type="text" placeholder="Enter Start Location"></label>
+        <label>End: <input id="end" type="text" placeholder="Enter Destination"></label>
+        
+        <label>Mode of Transport:
+            <select id="mode">
+                <option value="driving-car">Car</option>
+                <option value="cycling-regular">Bike</option>
+                <option value="foot-walking">Walking</option>
+                <option value="driving-hgv">Bus</option>
+            </select>
+        </label>
+        <button onclick="getRoute()">Find Route</button>
+        <button onclick="saveRoute()">Save Route</button>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="info">
+        <p><b>Distance:</b> <span id="distance">-</span></p>
+        <p><b>Estimated Time:</b> <span id="time">-</span></p>
+        <p><b>Fuel Estimate:</b> <span id="fuel-estimate">-</span></p>
+    </div>
+
+    <div class="info">
+        <h4>Traffic & Roadblock Reports</h4>
+        <button onclick="toggleReportForm()">Report an Issue</button>
+        <div id="report-form" style="display:none;">
+            <textarea id="report-text" placeholder="Describe the issue"></textarea>
+            <button onclick="submitReport()">Submit Report</button>
+        </div>
+        <div id="saved-reports"></div>
+    </div>
+
+    <div class="info">
+        <h4>Alternative Routes</h4>
+        <div id="alternative-routes"></div>
+    </div>
+
+    <script>
+        let map = L.map('map').setView([20.5937, 78.9629], 5); // Centered in India
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        let routeLayer = null; // Store the route layer to remove it later
+        let savedReports = JSON.parse(localStorage.getItem('savedReports')) || []; // Initialize savedReports
+        let savedRoutes = JSON.parse(localStorage.getItem('savedRoutes')) || []; // Initialize savedRoutes
+
+        // Calculate fuel estimate
+        function calculateFuelEstimate(distance) {
+            const fuelEfficiency = 15; // km per liter, adjust as needed
+            const fuelCost = 100; // INR per liter, adjust as needed
+            const totalFuel = distance / fuelEfficiency;
+            const totalCost = totalFuel * fuelCost;
+            return totalCost.toFixed(2);
+        }
+
+        // Handle route fetching and displaying
+        function getRoute() {
+            const start = document.getElementById('start').value;
+            const end = document.getElementById('end').value;
+            const mode = document.getElementById('mode').value;
+
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${start}`)
+                .then(response => response.json())
+                .then(data1 => {
+                    if (data1.length === 0) return alert("Start location not found!");
+                    const startCoords = [data1[0].lat, data1[0].lon];
+
+                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${end}`)
+                        .then(response => response.json())
+                        .then(data2 => {
+                            if (data2.length === 0) return alert("End location not found!");
+                            const endCoords = [data2[0].lat, data2[0].lon];
+
+                            // Remove old route if exists
+                            if (routeLayer) {
+                                map.removeLayer(routeLayer); // Clear the previous route
+                                routeLayer = null; // Reset routeLayer
+                            }
+
+                            // Fetch the new route
+                            fetch(`https://api.openrouteservice.org/v2/directions/${mode}?api_key=5b3ce3597851110001cf62487d98feb98f784f8198ab3e59395a1436&start=${startCoords[1]},${startCoords[0]}&end=${endCoords[1]},${endCoords[0]}`)
+                                .then(response => response.json())
+                                .then(routeData => {
+                                    const routeCoords = routeData.features[0].geometry.coordinates.map(coord => [coord[1], coord[0]]);
+                                    routeLayer = L.polyline(routeCoords, { color: 'blue' }).addTo(map); // Draw new route
+                                    map.fitBounds(routeLayer.getBounds()); // Adjust map view
+
+                                    // Update distance & time
+                                    const distance = (routeData.features[0].properties.segments[0].distance / 1000).toFixed(2); // Convert to km
+                                    const duration = (routeData.features[0].properties.segments[0].duration / 60).toFixed(2); // Convert to minutes
+
+                                    document.getElementById('distance').innerText = `${distance} km`;
+                                    document.getElementById('time').innerText = `${duration} mins`;
+
+                                    // Calculate and display fuel estimate
+                                    const fuelEstimate = calculateFuelEstimate(distance);
+                                    document.getElementById('fuel-estimate').innerText = `₹${fuelEstimate}`;
+
+                                    // Show alternative routes
+                                    showAlternativeRoutes(startCoords, endCoords, mode);
+                                })
+                                .catch(error => alert("Error fetching route!"));
+                        });
+                });
+        }
+
+        // Show alternative routes
+        function showAlternativeRoutes(startCoords, endCoords, mode) {
+            fetch(`https://api.openrouteservice.org/v2/directions/${mode}?api_key=5b3ce3597851110001cf62487d98feb98f784f8198ab3e59395a1436&start=${startCoords[1]},${startCoords[0]}&end=${endCoords[1]},${endCoords[0]}&options=alternative_routes`)
+                .then(response => response.json())
+                .then(routeData => {
+                    const alternativeRoutesDiv = document.getElementById('alternative-routes');
+                    alternativeRoutesDiv.innerHTML = ''; // Clear previous routes
+
+                    routeData.features.forEach((route, index) => {
+                        const routeCoords = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+                        const polyline = L.polyline(routeCoords, { color: index === 0 ? 'blue' : 'green' }).addTo(map);
+                        const routeDistance = (route.properties.segments[0].distance / 1000).toFixed(2); // Convert to km
+                        const routeDuration = (route.properties.segments[0].duration / 60).toFixed(2); // Convert to minutes
+
+                        const routeInfo = `<p>Route ${index + 1}: ${routeDistance} km, ${routeDuration} mins</p>`;
+                        alternativeRoutesDiv.innerHTML += routeInfo;
+                    });
+                });
+        }
+
+        // Toggle report form visibility
+        function toggleReportForm() {
+            const form = document.getElementById('report-form');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Submit user-reported traffic/roadblock issue
+        function submitReport() {
+            const reportText = document.getElementById('report-text').value;
+            if (!reportText) return alert('Please enter a report!');
+
+            // Store report in local storage (or you could send it to a backend database)
+            const report = {
+                text: reportText,
+                timestamp: new Date().toLocaleString(),
+            };
+            savedReports.push(report);
+            localStorage.setItem('savedReports', JSON.stringify(savedReports));
+
+            // Display new report
+            displayReports();
+        }
+
+        // Display saved reports
+        function displayReports() {
+            const savedReportsDiv = document.getElementById('saved-reports');
+            savedReportsDiv.innerHTML = '';
+            savedReports.forEach(report => {
+                savedReportsDiv.innerHTML += `<p><strong>${report.timestamp}:</strong> ${report.text}</p>`;
+            });
+        }
+
+        // Save route to local storage
+        function saveRoute() {
+            const start = document.getElementById('start').value;
+            const end = document.getElementById('end').value;
+            if (!start || !end) {
+                alert("Please enter both start and destination locations!");
+                return;
+            }
+
+            const route = { start, end };
+            savedRoutes.push(route);
+            localStorage.setItem('savedRoutes', JSON.stringify(savedRoutes));
+
+            alert('Route saved!');
+        }
+
+        // Initialize reports on page load
+        displayReports();
+    </script>
+</body>
+</html>

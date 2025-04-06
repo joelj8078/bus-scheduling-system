@@ -8,6 +8,8 @@ import traceback
 from datetime import datetime, timezone
 import random
 import time 
+import requests
+
 
 # Set timezone
 DESIRED_TZ = pytz.timezone("Asia/Kolkata")
@@ -16,6 +18,7 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['TEMPLATES_AUTO_RELOAD'] = True
+ORS_API_KEY = '5b3ce3597851110001cf62487d98feb98f784f8198ab3e59395a1436'
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -40,6 +43,7 @@ def log_request_info():
 @app.route('/')
 def home():
     return render_template('index.html')
+
 
 @app.route('/routes_page')
 def routes_page():
@@ -315,6 +319,54 @@ def get_bus_locations():
         bus["latitude"] += (random.uniform(-0.0005, 0.0005))
         bus["longitude"] += (random.uniform(-0.0005, 0.0005))
     return jsonify(bus_data)
+
+@app.route('/get-alternative-routes', methods=['POST'])
+def get_alternative_routes():
+    try:
+        data = request.get_json()
+        start = data.get('start')
+        end = data.get('end')
+
+        if not start or not end:
+            return jsonify({"error": "Missing start or end coordinates"}), 400
+
+        # OpenRouteService Directions API
+        ors_url = 'https://api.openrouteservice.org/v2/directions/driving-car'
+        headers = {
+            'Authorization': ORS_API_KEY,
+            'Content-Type': 'application/json'
+        }
+        payload = {
+            "coordinates": [start, end],
+            "alternative_routes": {
+                "share_factor": 0.6,
+                "target_count": 3,
+                "weight_factor": 1.6
+            }
+        }
+
+        response = requests.post(ors_url, headers=headers, json=payload)
+        if response.status_code != 200:
+            return jsonify({"error": "Failed to fetch routes from OpenRouteService", "details": response.text}), 500
+
+        data = response.json()
+
+        routes = []
+        for feature in data.get("features", []):
+            route_info = {
+                "distance_km": round(feature["properties"]["segments"][0]["distance"] / 1000, 2),
+                "duration_min": round(feature["properties"]["segments"][0]["duration"] / 60, 2),
+                "coordinates": feature["geometry"]["coordinates"]
+            }
+            routes.append(route_info)
+
+        return jsonify({"routes": routes}), 200
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
 
 # ✅ Run the App
 if __name__ == "__main__":

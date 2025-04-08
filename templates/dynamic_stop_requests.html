@@ -52,7 +52,7 @@
                     <td>{{ stop.user_id }}</td>
                     <td>
                         <button class="btn btn-warning btn-sm"
-                                onclick="showEditModal('{{ stop.id }}', '{{ stop.latitude }}', '{{ stop.longitude }}', '{{ stop.requested_time }}', '{{ stop.status }}', '{{ stop.user_id }}')">
+                                onclick="showEditModal('{{ stop.id }}', '{{ stop.latitude }}', '{{ stop.longitude }}', '{{ stop.status }}', '{{ stop.user_id }}')">
                             ✏️ Edit
                         </button>
                         <button class="btn btn-danger btn-sm" onclick="deleteStop('{{ stop.id }}')">🗑️ Delete</button>
@@ -121,7 +121,7 @@
                             <td>${stop.user_id}</td>
                             <td>
                                 <button class="btn btn-warning btn-sm"
-                                        onclick="showEditModal('${stop.id}', '${stop.latitude}', '${stop.longitude}', '${new Date(stop.requested_time).toISOString().slice(0, 16)}', '${stop.status}', '${stop.user_id}')">
+                                        onclick="showEditModal('${stop.id}', '${stop.latitude}', '${stop.longitude}', '${stop.status}', '${stop.user_id}')">
                                     ✏️ Edit
                                 </button>
                                 <button class="btn btn-danger btn-sm" onclick="deleteStop(${stop.id})">🗑️ Delete</button>
@@ -165,7 +165,7 @@
         .then(data => {
             if (data.message) {
                 alert(data.message);
-                fetchStops(); // Refresh table after deletion
+                fetchStops();
             } else {
                 alert("⚠️ Error deleting stop request: " + (data.error || "Unknown error"));
             }
@@ -173,13 +173,13 @@
         .catch(err => alert("⚠️ Failed to connect to the server."));
     }
 
-
+    // ✅ Save Stop (Add or Edit)
     function saveStop() {
-        let id = document.getElementById('stop_id').value;  // ✅ Corrected hidden field ID
+        let id = document.getElementById('stop_id').value;
         let latitude = document.getElementById('latitude').value;
         let longitude = document.getElementById('longitude').value;
         let status = document.getElementById('status').value;
-        let user_id = document.getElementById('user_id').value;  // ✅ Ensure it's retrieved correctly
+        let user_id = document.getElementById('user_id').value;
 
         if (!latitude || !longitude || !user_id) {
             alert("⚠️ Please fill in all fields.");
@@ -190,7 +190,7 @@
             latitude: latitude,
             longitude: longitude,
             status: status,
-            user_id: parseInt(user_id)  // ✅ Ensure `user_id` is an integer
+            user_id: parseInt(user_id)
         };
 
         const url = id ? `/dynamic_requests/${id}` : '/dynamic_requests';
@@ -206,7 +206,7 @@
             if (data.message) {
                 alert(data.message);
                 closeModal();
-                fetchStops();  // ✅ Refresh the table
+                fetchStops();
             } else {
                 alert("⚠️ Error saving stop request: " + (data.error || "Unknown error"));
             }
@@ -214,12 +214,11 @@
         .catch(err => alert("⚠️ Failed to connect to the server."));
     }
 
-
-
-// ✅ Close the Modal
+    // ✅ Close the Modal
     function closeModal() {
         document.getElementById("stopModal").classList.remove("show");
     }
+
     window.onload = fetchStops;
 </script>
 

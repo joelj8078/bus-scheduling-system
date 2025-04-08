@@ -57,6 +57,11 @@ def crew_page():
 def dynamic_stop_requests():
     return render_template('dynamic_stop_requests.html')
 
+@app.route('/voice-request-stop')
+def voice_request_stop():
+    return render_template('voice_request_stop.html')
+
+
 # ===========================
 # 🚍 Route Management API
 # ===========================
@@ -305,6 +310,18 @@ def manage_single_dynamic_stop_request(request_id):
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
     
+# ===============================
+# 🧭 View Dynamic Stops (UI page)
+# ===============================
+@app.route('/dynamic-stops')
+def view_dynamic_stops():
+    try:
+        requests = DynamicStopRequest.query.all()
+        return render_template('dynamic_stops.html', requests=requests)
+    except Exception as e:
+        traceback.print_exc()
+        return "Something went wrong while loading dynamic stops!", 500
+  
 # Dummy bus data (simulating real-time updates)
 bus_data = [
     {"id": 1, "latitude": 12.9716, "longitude": 77.5946},  # Initial location (Bangalore)
@@ -365,6 +382,30 @@ def get_alternative_routes():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/submit_voice_stop', methods=['POST'])
+def submit_voice_stop():
+    data = request.get_json()
+    stop_name = data.get('stop_name')
+    latitude = data.get('latitude')
+    longitude = data.get('longitude')
+
+    if not stop_name or not latitude or not longitude:
+        return jsonify({'message': 'Invalid input data'}), 400
+
+    ist = pytz.timezone('Asia/Kolkata')
+    now_ist = datetime.now(ist) 
+
+    new_request = DynamicStopRequest(
+        latitude=latitude,
+        longitude=longitude,
+        requested_time=now_ist,
+        status='Pending'
+    )
+    db.session.add(new_request)
+    db.session.commit()
+
+    return jsonify({'message': f'Stop request for "{stop_name}" submitted successfully! ✅'})
 
 
 

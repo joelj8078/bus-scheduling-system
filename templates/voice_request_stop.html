@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>🎤 Voice-Based Stop Request</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 2rem;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin-right: 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            background-color: #007bff;
+            color: white;
+        }
+        .info {
+            margin-top: 20px;
+        }
+        #map {
+            height: 350px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+        .coordinates {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        #responseMessage {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body>
+
+    <h1>🎤 Voice-Based Dynamic Stop Request</h1>
+
+    <button onclick="startListening()">🎙️ Speak Stop Name</button>
+    <button onclick="submitRequest()">📤 Submit Stop Request</button>
+
+    <h3>🗺️ Stop Location Preview</h3>
+    <div id="map"></div>
+
+    <div class="info">
+        <p><strong>Spoken Stop:</strong> <span id="stopName">None</span></p>
+        <p><strong>Your Location:</strong> <span id="location">Detecting...</span></p>
+        <div class="coordinates" id="coordDisplay"></div>
+        <p id="responseMessage" style="color: green;"></p>
+    </div>
+
+    <script>
+        let stopName = "";
+        let userLatitude = null;
+        let userLongitude = null;
+        let map;
+        let userMarker = null;
+        let stopMarker = null;
+
+        // Get user's current location
+        window.onload = function () {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    userLatitude = position.coords.latitude;
+                    userLongitude = position.coords.longitude;
+
+                    document.getElementById('location').textContent =
+                        `Lat: ${userLatitude.toFixed(6)}, Lng: ${userLongitude.toFixed(6)}`;
+
+                    initMap(userLatitude, userLongitude);
+                }, error => {
+                    document.getElementById('location').textContent = "❌ Location access denied.";
+                });
+            } else {
+                alert("Geolocation is not supported by this browser.");
+            }
+        };
+
+        function initMap(lat, lng) {
+            map = L.map('map').setView([lat, lng], 15);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            userMarker = L.marker([lat, lng]).addTo(map)
+                .bindPopup("🧍 You are here")
+                .openPopup();
+        }
+
+        function updateMapWithStop(lat, lng, stopText) {
+            if (stopMarker) {
+                map.removeLayer(stopMarker);
+            }
+
+            stopMarker = L.marker([lat, lng]).addTo(map)
+                .bindPopup("🛑 Requested Stop: " + stopText)
+                .openPopup();
+
+            map.setView([lat, lng], 16);
+
+            document.getElementById('coordDisplay').textContent =
+                `📌 Latitude: ${lat.toFixed(6)} | Longitude: ${lng.toFixed(6)}`;
+        }
+
+        function startListening() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+            if (!SpeechRecognition) {
+                alert("Speech recognition not supported in this browser.");
+                return;
+            }
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'en-IN';
+            recognition.start();
+
+            recognition.onresult = function(event) {
+                stopName = event.results[0][0].transcript;
+                document.getElementById('stopName').textContent = stopName;
+
+                if (stopName) {
+                    // Geocode the spoken stop name
+                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(stopName)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.length > 0) {
+                                const lat = parseFloat(data[0].lat);
+                                const lon = parseFloat(data[0].lon);
+                                updateMapWithStop(lat, lon, stopName);
+                                userLatitude = lat;
+                                userLongitude = lon;
+                            } else {
+                                alert("Could not locate: " + stopName);
+                            }
+                        });
+                }
+            };
+
+            recognition.onerror = function(event) {
+                alert("Speech recognition error: " + event.error);
+                console.error("Speech recognition error:", event.error);
+            };
+        }
+
+        function submitRequest() {
+            if (!stopName || userLatitude === null || userLongitude === null) {
+                alert("Please provide stop name and location.");
+                return;
+            }
+
+            fetch('http://127.0.0.1:5000/submit_voice_stop', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    stop_name: stopName,
+                    latitude: userLatitude,
+                    longitude: userLongitude,
+                    input_method: "voice"
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('responseMessage').textContent = data.message || "✅ Stop request submitted successfully!";
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('responseMessage').textContent = "❌ Failed to submit request.";
+            });
+        }
+    </script>
+
+</body>
+</html>

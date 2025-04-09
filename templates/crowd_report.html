@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bus Stop Crowd Report</title>
+    <script>
+        async function loadBusStops() {
+            try {
+                const response = await fetch('/api/bus_stops');
+                const stops = await response.json();
+    
+                const dropdown = document.getElementById("stopName");
+                dropdown.innerHTML = '<option value="">-- Choose a Stop --</option>';
+                stops.forEach(stop => {
+                    dropdown.innerHTML += `<option value="${stop.name}">${stop.name}</option>`;
+                });
+            } catch (error) {
+                console.error("Failed to load stops:", error);
+                alert("❌ Failed to load stops.");
+            }
+        }
+    
+        async function submitReport(level) {
+            const stopName = document.getElementById("stopName").value;
+            if (!stopName) {
+                alert("Please select a stop name!");
+                return;
+            }
+    
+            const data = {
+                stop_name: stopName,
+                crowd_level: level,
+                reported_by_voice: false
+            };
+    
+            const response = await fetch("/submit_crowd_report", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            });
+    
+            const result = await response.json();
+            alert(result.message || "Something went wrong.");
+        }
+    
+        window.onload = loadBusStops;
+    </script>
+    
+</head>
+<body>
+    <h2>📍 Report Crowd at Your Bus Stop</h2>
+
+    <label for="stopName">Select Stop:</label>
+    <select id="stopName">
+        <option value="">-- Choose a Stop --</option>
+    </select>
+
+    <h3>How crowded is it?</h3>
+    <button onclick="submitReport('Low')">🟢 Low</button>
+    <button onclick="submitReport('Medium')">🟡 Medium</button>
+    <button onclick="submitReport('High')">🔴 High</button>
+</body>
+</html>

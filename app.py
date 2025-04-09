@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, render_template, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from config import DATABASE_URL
-from database import db, init_db, Route, Crew, DynamicStopRequest, User
+from database import db, init_db, Route, Crew, DynamicStopRequest, User, CrowdReport, BusStop
 import pytz
 import traceback
 from datetime import datetime, timezone
@@ -57,9 +57,17 @@ def crew_page():
 def dynamic_stop_requests():
     return render_template('dynamic_stop_requests.html')
 
-@app.route('/voice-request-stop')
+@app.route('/voice_request_stop')
 def voice_request_stop():
     return render_template('voice_request_stop.html')
+
+@app.route('/crowd_report')
+def crowd_report_page():
+    return render_template('crowd_report.html')
+
+@app.route('/crowd_map')
+def crowd_map():
+    return render_template('crowd_map.html')
 
 
 # ===========================
@@ -389,23 +397,92 @@ def submit_voice_stop():
     stop_name = data.get('stop_name')
     latitude = data.get('latitude')
     longitude = data.get('longitude')
+    user_id = data.get('user_id')  # ✅ Add this
 
-    if not stop_name or not latitude or not longitude:
-        return jsonify({'message': 'Invalid input data'}), 400
+    if not stop_name or not latitude or not longitude or not user_id:
+        return jsonify({'message': 'Invalid input data: stop_name, latitude, longitude, and user_id are required.'}), 400
 
-    ist = pytz.timezone('Asia/Kolkata')
-    now_ist = datetime.now(ist) 
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'message': 'User not found'}), 404
+
+    now_ist = datetime.now(pytz.timezone('Asia/Kolkata'))
 
     new_request = DynamicStopRequest(
         latitude=latitude,
         longitude=longitude,
         requested_time=now_ist,
-        status='Pending'
+        status='Pending',
+        user_id=user_id  # ✅ Assign user_id
     )
+
     db.session.add(new_request)
     db.session.commit()
 
     return jsonify({'message': f'Stop request for "{stop_name}" submitted successfully! ✅'})
+
+
+# ===========================
+# 🚀 API to Submit Crowd Report
+# ===========================
+@app.route('/submit_crowd_report', methods=['POST'])
+def submit_crowd_report():
+    try:
+        data = request.get_json()
+        stop_name = data.get('stop_name')
+        crowd_level = data.get('crowd_level')
+        reported_by_voice = data.get('reported_by_voice', False)
+
+        bus_stop = BusStop.query.filter_by(name=stop_name).first()
+        if not bus_stop:
+            return jsonify({'success': False, 'message': f'Bus stop \"{stop_name}\" not found.'}), 404
+
+        report = CrowdReport(
+            stop_id=bus_stop.id,
+            crowd_level=crowd_level,
+            reported_by_voice=reported_by_voice
+        )
+
+        db.session.add(report)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Crowd report submitted successfully.'})
+    
+    except Exception as e:
+        print("Error submitting crowd report:", e)
+        return jsonify({'success': False, 'message': 'Error submitting report.'}), 500
+    
+def fetch_bus_stops_from_osm(lat, lon, radius=1000):
+    print("🌐 Calling Overpass API to get bus stops...")
+    overpass_url = "http://overpass-api.de/api/interpreter"
+    query = f"""
+    [out:json];
+    (
+      node(around:{radius},{lat},{lon})[highway=bus_stop];
+    );
+    out body;
+    """
+    response = requests.post(overpass_url, data=query)
+    data = response.json()
+
+    stops = []
+    for element in data['elements']:
+        name = element['tags'].get('name')
+        if name:
+            stops.append((name, element['lat'], element['lon']))
+    
+    return stops
+
+
+@app.route("/api/bus_stops")
+def get_bus_stops():
+    try:
+        stops = BusStop.query.order_by(BusStop.name).all()
+        return jsonify([{"id": stop.id, "name": stop.name} for stop in stops])
+    except Exception as e:
+        print("Error fetching bus stops:", e)
+        return jsonify({"error": "Internal server error"}), 500
+
+
 
 
 

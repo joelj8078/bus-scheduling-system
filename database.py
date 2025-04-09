@@ -68,6 +68,30 @@ class DynamicStopRequest(db.Model):
             # Convert UTC to IST
             return ist_time.strftime('%Y-%m-%d %H:%M:%S')  # Format time properly
         return None
+    
+class CrowdReport(db.Model):
+    __tablename__ = 'crowd_reports'
+
+    id = db.Column(db.Integer, primary_key=True)
+    stop_id = db.Column(db.Integer, db.ForeignKey('bus_stops.id'), nullable=False)
+    crowd_level = db.Column(db.String(50), nullable=False)  # e.g., Low, Medium, High
+    reported_by_voice = db.Column(db.Boolean, default=False)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def get_local_time(self):
+        return self.timestamp.astimezone(pytz.timezone("Asia/Kolkata")).strftime("%Y-%m-%d %H:%M:%S")
+
+    
+class BusStop(db.Model):
+    __tablename__ = 'bus_stops'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, nullable=False)
+    latitude = db.Column(db.String, nullable=False)
+    longitude = db.Column(db.String, nullable=False)
+
+    crowd_reports = db.relationship('CrowdReport', backref='stop', lazy=True)
+
+    
 
 # ==========================
 # 🗄️ Database Initialization

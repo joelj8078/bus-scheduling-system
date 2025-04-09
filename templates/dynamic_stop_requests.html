@@ -8,25 +8,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { background-color: #f8f9fa; padding: 20px; }
-        .modal {
-            display: none; position: fixed; top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            justify-content: center; align-items: center; z-index: 1000;
-        }
-        .modal-content {
-            background: white; padding: 20px;
-            border-radius: 10px; width: 400px;
-        }
-        .modal.show { display: flex !important; }
-        .btn-close { float: right; }
     </style>
 </head>
 <body>
 
 <div class="container mt-5">
-    <h2 class="mb-4 text-center">📍 Dynamic Stop Requests</h2>
-    <button class="btn btn-primary mb-3" onclick="showAddModal()">➕ Add Request</button>
+    <h2 class="mb-4 text-center">📍 Dynamic Stop Requests (Voice Only)</h2>
 
     <table class="table table-bordered table-striped">
         <thead class="table-dark">
@@ -47,15 +34,15 @@
                     <td>{{ stop.id }}</td>
                     <td>{{ stop.latitude }}</td>
                     <td>{{ stop.longitude }}</td>
-                    <td>{{ stop.requested_time }}</td>
+                    <td>{{ stop.get_requested_time_ist() }}</td>
                     <td>{{ stop.status }}</td>
                     <td>{{ stop.user_id }}</td>
                     <td>
-                        <button class="btn btn-warning btn-sm"
-                                onclick="showEditModal('{{ stop.id }}', '{{ stop.latitude }}', '{{ stop.longitude }}', '{{ stop.status }}', '{{ stop.user_id }}')">
-                            ✏️ Edit
-                        </button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteStop('{{ stop.id }}')">🗑️ Delete</button>
+                        {% if stop.status == "Pending" %}
+                            <button class="btn btn-success btn-sm me-1" onclick="updateStatus('{{ stop.id }}', 'Approved')">🟢 Approve</button>
+                            <button class="btn btn-danger btn-sm me-1" onclick="updateStatus('{{ stop.id }}', 'Rejected')">🔴 Reject</button>
+                        {% endif %}
+                        <button class="btn btn-secondary btn-sm" onclick="deleteStop('{{ stop.id }}')">🗑️ Delete</button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -64,41 +51,6 @@
             {% endif %}
         </tbody>
     </table>
-</div>
-
-<!-- ✅ Modal for Adding & Editing Stops -->
-<div id="stopModal" class="modal">
-    <div class="modal-content">
-        <button class="btn-close btn btn-danger btn-sm mb-2" onclick="closeModal()">✖️</button>
-        <h4 id="modalTitle">Add Stop Request</h4>
-        <input type="hidden" id="stop_id">
-
-        <div class="mb-3">
-            <label for="latitude" class="form-label">Latitude</label>
-            <input type="text" id="latitude" class="form-control" placeholder="Enter Latitude">
-        </div>
-
-        <div class="mb-3">
-            <label for="longitude" class="form-label">Longitude</label>
-            <input type="text" id="longitude" class="form-control" placeholder="Enter Longitude">
-        </div>
-
-        <div class="mb-3">
-            <label for="status" class="form-label">Status</label>
-            <select id="status" class="form-select">
-                <option value="Pending">Pending</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-            </select>
-        </div>
-
-        <div class="mb-3">
-            <label for="user_id" class="form-label">User ID</label>
-            <input type="text" id="user_id" class="form-control" placeholder="Enter User ID">
-        </div>
-
-        <button class="btn btn-success" onclick="saveStop()">✅ Save</button>
-    </div>
 </div>
 
 <script>
@@ -111,7 +63,8 @@
                 if (data.length === 0) {
                     tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No dynamic stop requests found.</td></tr>`;
                 } else {
-                    tbody.innerHTML = data.map(stop => `
+                    tbody.innerHTML = data.map(stop => {
+                        return `
                         <tr>
                             <td>${stop.id}</td>
                             <td>${stop.latitude}</td>
@@ -120,38 +73,36 @@
                             <td>${stop.status}</td>
                             <td>${stop.user_id}</td>
                             <td>
-                                <button class="btn btn-warning btn-sm"
-                                        onclick="showEditModal('${stop.id}', '${stop.latitude}', '${stop.longitude}', '${stop.status}', '${stop.user_id}')">
-                                    ✏️ Edit
-                                </button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteStop(${stop.id})">🗑️ Delete</button>
+                                ${stop.status === 'Pending' ? `
+                                    <button class="btn btn-success btn-sm me-1" onclick="updateStatus(${stop.id}, 'Approved')">🟢 Approve</button>
+                                    <button class="btn btn-danger btn-sm me-1" onclick="updateStatus(${stop.id}, 'Rejected')">🔴 Reject</button>
+                                ` : ''}
+                                <button class="btn btn-secondary btn-sm" onclick="deleteStop(${stop.id})">🗑️ Delete</button>
                             </td>
-                        </tr>`).join('');
+                        </tr>`;
+                    }).join('');
                 }
             })
             .catch(err => alert("⚠️ Error fetching stops."));
     }
 
-    // ✅ Show Modal for Adding a Stop
-    function showAddModal() {
-        document.getElementById("modalTitle").innerText = "➕ Add New Stop Request";
-        document.getElementById("stop_id").value = "";
-        document.getElementById("latitude").value = "";
-        document.getElementById("longitude").value = "";
-        document.getElementById("status").value = "Pending";
-        document.getElementById("user_id").value = "";
-        document.getElementById("stopModal").classList.add("show");
-    }
-
-    // ✅ Show Modal for Editing
-    function showEditModal(id, latitude, longitude, status, user_id) {
-        document.getElementById("modalTitle").innerText = "✏️ Edit Stop Request";
-        document.getElementById("stop_id").value = id;
-        document.getElementById("latitude").value = latitude;
-        document.getElementById("longitude").value = longitude;
-        document.getElementById("status").value = status;
-        document.getElementById("user_id").value = user_id;
-        document.getElementById("stopModal").classList.add("show");
+    // ✅ Update Status: Approve / Reject
+    function updateStatus(id, newStatus) {
+        fetch(`/dynamic_requests/${id}`, {
+            method: 'PUT',
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: newStatus })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.message) {
+                alert(data.message);
+                fetchStops();
+            } else {
+                alert("⚠️ Error updating status.");
+            }
+        })
+        .catch(err => alert("⚠️ Failed to update stop status."));
     }
 
     // ✅ Delete Stop Request
@@ -171,52 +122,6 @@
             }
         })
         .catch(err => alert("⚠️ Failed to connect to the server."));
-    }
-
-    // ✅ Save Stop (Add or Edit)
-    function saveStop() {
-        let id = document.getElementById('stop_id').value;
-        let latitude = document.getElementById('latitude').value;
-        let longitude = document.getElementById('longitude').value;
-        let status = document.getElementById('status').value;
-        let user_id = document.getElementById('user_id').value;
-
-        if (!latitude || !longitude || !user_id) {
-            alert("⚠️ Please fill in all fields.");
-            return;
-        }
-
-        let requestData = {
-            latitude: latitude,
-            longitude: longitude,
-            status: status,
-            user_id: parseInt(user_id)
-        };
-
-        const url = id ? `/dynamic_requests/${id}` : '/dynamic_requests';
-        const method = id ? 'PUT' : 'POST';
-
-        fetch(url, {
-            method: method,
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.message) {
-                alert(data.message);
-                closeModal();
-                fetchStops();
-            } else {
-                alert("⚠️ Error saving stop request: " + (data.error || "Unknown error"));
-            }
-        })
-        .catch(err => alert("⚠️ Failed to connect to the server."));
-    }
-
-    // ✅ Close the Modal
-    function closeModal() {
-        document.getElementById("stopModal").classList.remove("show");
     }
 
     window.onload = fetchStops;

@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import func, desc 
 from flask_migrate import Migrate
 from config import DATABASE_URL
 from database import db, init_db, Route, Crew, DynamicStopRequest, User, CrowdReport, BusStop
@@ -68,6 +69,11 @@ def crowd_report_page():
 @app.route('/crowd_map')
 def crowd_map():
     return render_template('crowd_map.html')
+
+@app.route('/crowd_heatmap')
+def heatmap_page():
+    return render_template('crowd_heatmap.html')
+
 
 
 # ===========================
@@ -425,31 +431,49 @@ def submit_voice_stop():
 # ===========================
 # 🚀 API to Submit Crowd Report
 # ===========================
+
 @app.route('/submit_crowd_report', methods=['POST'])
 def submit_crowd_report():
-    try:
-        data = request.get_json()
-        stop_name = data.get('stop_name')
-        crowd_level = data.get('crowd_level')
-        reported_by_voice = data.get('reported_by_voice', False)
+    data = request.get_json()
 
-        bus_stop = BusStop.query.filter_by(name=stop_name).first()
-        if not bus_stop:
-            return jsonify({'success': False, 'message': f'Bus stop \"{stop_name}\" not found.'}), 404
+    stop_name = data.get('stop_name')
+    crowd_level = data.get('crowd_level')
+    reported_by_voice = data.get('reported_by_voice', False)
+    latitude = data.get('latitude')
+    longitude = data.get('longitude')
 
-        report = CrowdReport(
-            stop_id=bus_stop.id,
-            crowd_level=crowd_level,
-            reported_by_voice=reported_by_voice
+    if not stop_name or not crowd_level:
+        return jsonify({"message": "Stop name and crowd level are required."}), 400
+
+    # Check if the stop already exists
+    bus_stop = BusStop.query.filter_by(name=stop_name).first()
+
+    # If stop doesn't exist and coordinates are provided, create a new stop
+    if not bus_stop and latitude is not None and longitude is not None:
+        bus_stop = BusStop(
+            name=stop_name,
+            latitude=str(latitude),  # ensure string to match DB type
+            longitude=str(longitude)
         )
-
-        db.session.add(report)
+        db.session.add(bus_stop)
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Crowd report submitted successfully.'})
-    
-    except Exception as e:
-        print("Error submitting crowd report:", e)
-        return jsonify({'success': False, 'message': 'Error submitting report.'}), 500
+
+    # If stop still doesn't exist and we couldn't create one
+    if not bus_stop:
+        return jsonify({"message": "Stop not found and no valid coordinates provided."}), 400
+
+    # Create the new crowd report
+    report = CrowdReport(
+        stop_id=bus_stop.id,
+        crowd_level=crowd_level,
+        reported_by_voice=reported_by_voice
+    )
+
+    db.session.add(report)
+    db.session.commit()
+
+    return jsonify({"message": f"✅ Crowd level '{crowd_level}' reported for stop '{stop_name}'."}), 200
+
     
 def fetch_bus_stops_from_osm(lat, lon, radius=1000):
     print("🌐 Calling Overpass API to get bus stops...")
@@ -481,9 +505,42 @@ def get_bus_stops():
     except Exception as e:
         print("Error fetching bus stops:", e)
         return jsonify({"error": "Internal server error"}), 500
+    
+@app.route('/api/crowd_heatmap')
+def crowd_heatmap():
+    try:
+        # Subquery: Get the latest report timestamp for each stop
+        subquery = (
+            db.session.query(
+                CrowdReport.stop_id,
+                func.max(CrowdReport.timestamp).label('latest_timestamp')
+            ).group_by(CrowdReport.stop_id).subquery()
+        )
 
+        # Join the subquery with original CrowdReport to get full row
+        latest_reports = (
+            db.session.query(CrowdReport, BusStop)
+            .join(subquery, (CrowdReport.stop_id == subquery.c.stop_id) &
+                             (CrowdReport.timestamp == subquery.c.latest_timestamp))
+            .join(BusStop, BusStop.id == CrowdReport.stop_id)
+            .all()
+        )
 
+        # Format the results
+        results = []
+        for report, stop in latest_reports:
+            results.append({
+                "id": stop.id,
+                "name": stop.name,
+                "latitude": float(stop.latitude),
+                "longitude": float(stop.longitude),
+                "crowd_level": report.crowd_level
+            })
 
+        return jsonify(results)
+    except Exception as e:
+        print("Error generating heatmap data:", e)
+        return jsonify({'success': False, 'message': 'Error fetching heatmap data.'}), 500
 
 
 # ✅ Run the App

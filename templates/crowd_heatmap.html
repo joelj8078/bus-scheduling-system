@@ -1,0 +1,59 @@
+<!-- templates/crowd_heatmap.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bus Stop Crowd Heatmap</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #map {
+            height: 90vh;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <h2>🗺️ Real-time Crowd Heatmap</h2>
+    <div id="map"></div>
+
+    <script>
+        const map = L.map('map').setView([28.6139, 77.2090], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+      
+        // Function to get color based on crowd level
+        function getColor(level) {
+            switch (level) {
+                case 'High': return 'red';
+                case 'Medium': return 'orange';
+                case 'Low': return 'green';
+                default: return 'gray';
+            }
+        }
+      
+        // Load heatmap data
+        fetch('/api/crowd_heatmap')
+            .then(response => response.json())
+            .then(data => {
+                console.log("📍 Rendering Stops:", data);
+                data.forEach(stop => {
+                    const circle = L.circle([stop.latitude, stop.longitude], {
+                        color: getColor(stop.crowd_level),
+                        fillColor: getColor(stop.crowd_level),
+                        fillOpacity: 0.6,
+                        radius: 80
+                    }).addTo(map);
+      
+                    circle.bindPopup(`<b>${stop.name}</b><br>Crowd: ${stop.crowd_level}`);
+                });
+            })
+            .catch(err => {
+                console.error('Failed to load heatmap data:', err);
+            });
+    </script>
+      
+      
+</body>
+</html>

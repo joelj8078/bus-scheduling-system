@@ -3,49 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <title>Bus Stop Crowd Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { margin: 10px; padding: 10px 20px; font-size: 16px; }
+        #customStopWrapper { display: none; margin-top: 10px; }
+    </style>
     <script>
+        let allStops = [];
+
         async function loadBusStops() {
             try {
                 const response = await fetch('/api/bus_stops');
-                const stops = await response.json();
-    
+                allStops = await response.json();
+
                 const dropdown = document.getElementById("stopName");
                 dropdown.innerHTML = '<option value="">-- Choose a Stop --</option>';
-                stops.forEach(stop => {
+                allStops.forEach(stop => {
                     dropdown.innerHTML += `<option value="${stop.name}">${stop.name}</option>`;
                 });
+
+                dropdown.innerHTML += `<option value="custom">Other (Enter Manually)</option>`;
             } catch (error) {
                 console.error("Failed to load stops:", error);
                 alert("❌ Failed to load stops.");
             }
         }
-    
+
+        function handleStopChange(value) {
+            document.getElementById("customStopWrapper").style.display = (value === "custom") ? "block" : "none";
+        }
+
+        async function geocodeLocation(locationName) {
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationName)}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            if (data && data.length > 0) {
+                return {
+                    lat: parseFloat(data[0].lat),
+                    lon: parseFloat(data[0].lon)
+                };
+            } else {
+                throw new Error("Location not found");
+            }
+        }
+
         async function submitReport(level) {
-            const stopName = document.getElementById("stopName").value;
+            const selectedStop = document.getElementById("stopName").value;
+            const customStop = document.getElementById("customStop").value.trim();
+            let stopName = selectedStop === "custom" ? customStop : selectedStop;
+
             if (!stopName) {
-                alert("Please select a stop name!");
+                alert("Please select or enter a stop name!");
                 return;
             }
-    
+
+            let latitude = null;
+            let longitude = null;
+
+            if (selectedStop === "custom") {
+                try {
+                    const coords = await geocodeLocation(customStop);
+                    latitude = coords.lat;
+                    longitude = coords.lon;
+                } catch (error) {
+                    alert("📍 Could not find location. Try a more specific name.");
+                    return;
+                }
+            } else {
+                const selectedStopObj = allStops.find(s => s.name === stopName);
+                if (selectedStopObj) {
+                    latitude = parseFloat(selectedStopObj.latitude);
+                    longitude = parseFloat(selectedStopObj.longitude);
+                } else {
+                    alert("Stop not found in database.");
+                    return;
+                }
+            }
+
             const data = {
                 stop_name: stopName,
                 crowd_level: level,
-                reported_by_voice: false
+                reported_by_voice: false,
+                latitude,
+                longitude
             };
-    
-            const response = await fetch("/submit_crowd_report", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data)
-            });
-    
-            const result = await response.json();
-            alert(result.message || "Something went wrong.");
+
+            try {
+                const response = await fetch("/submit_crowd_report", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                alert(result.message || "✅ Report submitted successfully!");
+            } catch (error) {
+                alert("❌ Failed to submit report.");
+                console.error("Submit error:", error);
+            }
         }
-    
-        window.onload = loadBusStops;
+
+        window.onload = () => {
+            loadBusStops();
+            document.getElementById("stopName").addEventListener("change", (e) => {
+                handleStopChange(e.target.value);
+            });
+        };
     </script>
-    
 </head>
 <body>
     <h2>📍 Report Crowd at Your Bus Stop</h2>
@@ -54,6 +118,11 @@
     <select id="stopName">
         <option value="">-- Choose a Stop --</option>
     </select>
+
+    <div id="customStopWrapper">
+        <label for="customStop">Enter Stop Name:</label>
+        <input type="text" id="customStop" placeholder="Type stop name" />
+    </div>
 
     <h3>How crowded is it?</h3>
     <button onclick="submitReport('Low')">🟢 Low</button>

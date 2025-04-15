@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bus Inspector Dashboard</title>
+    <style>
+        body {
+            background: #f3f4f6;
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #ddd;
+            text-align: center;
+        }
+
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        .status {
+            font-weight: bold;
+        }
+
+        .status.On {
+            color: green;
+        }
+
+        .status.Off {
+            color: red;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Bus Inspector Dashboard</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Bus Number</th>
+            <th>Route</th>
+            <th>Status</th>
+            <th>Toggle</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for bus in buses %}
+        <tr>
+            <td>{{ bus.bus_number }}</td>
+            <td>{{ bus.route.route_name if bus.route else 'N/A' }}</td>
+            <td class="status {{ bus.status }}">{{ bus.status }}</td>
+            <td>
+                <form action="{{ url_for('inspector_dashboard') }}" method="post">
+                    <input type="hidden" name="bus_id" value="{{ bus.id }}">
+                    <button type="submit" class="btn">Toggle</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+</body>
+</html>

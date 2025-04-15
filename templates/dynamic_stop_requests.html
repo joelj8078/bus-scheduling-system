@@ -1,22 +1,84 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📍 Dynamic Stop Requests</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
-        body { background-color: #f8f9fa; padding: 20px; }
+        body {
+            background: linear-gradient(135deg, #e3f2fd, #ffffff);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 30px;
+        }
+
+        h2 {
+            font-weight: bold;
+            color: #0d6efd;
+            animation: fadeInDown 1s ease;
+        }
+
+        table {
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            animation: fadeInUp 0.8s ease;
+        }
+
+        th, td {
+            vertical-align: middle !important;
+        }
+
+        th {
+            background-color: #343a40 !important;
+            color: #fff;
+        }
+
+        .btn {
+            transition: transform 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-success:hover {
+            background-color: #198754;
+        }
+
+        .btn-danger:hover {
+            background-color: #dc3545;
+        }
+
+        .btn-secondary:hover {
+            background-color: #6c757d;
+        }
+
+        .table td, .table th {
+            text-align: center;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
 
-<div class="container mt-5">
-    <h2 class="mb-4 text-center">📍 Dynamic Stop Requests (Voice Only)</h2>
+<div class="container mt-4">
+    <h2 class="text-center mb-4">📍 Dynamic Stop Requests (Voice Only)</h2>
 
     <table class="table table-bordered table-striped">
-        <thead class="table-dark">
+        <thead>
             <tr>
                 <th>ID</th>
                 <th>Latitude</th>
@@ -39,15 +101,17 @@
                     <td>{{ stop.user_id }}</td>
                     <td>
                         {% if stop.status == "Pending" %}
-                            <button class="btn btn-success btn-sm me-1" onclick="updateStatus('{{ stop.id }}', 'Approved')">🟢 Approve</button>
-                            <button class="btn btn-danger btn-sm me-1" onclick="updateStatus('{{ stop.id }}', 'Rejected')">🔴 Reject</button>
+                            <button class="btn btn-success btn-sm me-1" onclick="updateStatus('{{ stop.id }}', 'Approved')" title="Approve Request">🟢</button>
+                            <button class="btn btn-danger btn-sm me-1" onclick="updateStatus('{{ stop.id }}', 'Rejected')" title="Reject Request">🔴</button>
                         {% endif %}
-                        <button class="btn btn-secondary btn-sm" onclick="deleteStop('{{ stop.id }}')">🗑️ Delete</button>
+                        <button class="btn btn-secondary btn-sm" onclick="deleteStop('{{ stop.id }}')" title="Delete Request">🗑️</button>
                     </td>
                 </tr>
                 {% endfor %}
             {% else %}
-                <tr><td colspan="7" class="text-center text-muted">No dynamic stop requests found.</td></tr>
+                <tr>
+                    <td colspan="7" class="text-center text-muted">No dynamic stop requests found.</td>
+                </tr>
             {% endif %}
         </tbody>
     </table>
@@ -74,10 +138,10 @@
                             <td>${stop.user_id}</td>
                             <td>
                                 ${stop.status === 'Pending' ? `
-                                    <button class="btn btn-success btn-sm me-1" onclick="updateStatus(${stop.id}, 'Approved')">🟢 Approve</button>
-                                    <button class="btn btn-danger btn-sm me-1" onclick="updateStatus(${stop.id}, 'Rejected')">🔴 Reject</button>
+                                    <button class="btn btn-success btn-sm me-1" onclick="updateStatus(${stop.id}, 'Approved')" title="Approve Request">🟢</button>
+                                    <button class="btn btn-danger btn-sm me-1" onclick="updateStatus(${stop.id}, 'Rejected')" title="Reject Request">🔴</button>
                                 ` : ''}
-                                <button class="btn btn-secondary btn-sm" onclick="deleteStop(${stop.id})">🗑️ Delete</button>
+                                <button class="btn btn-secondary btn-sm" onclick="deleteStop(${stop.id})" title="Delete Request">🗑️</button>
                             </td>
                         </tr>`;
                     }).join('');

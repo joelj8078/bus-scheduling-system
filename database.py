@@ -34,6 +34,8 @@ class Route(db.Model):
     end_point = db.Column(db.String(100), nullable=False)
     crew_members = db.relationship('Crew', backref='route', lazy=True)
 
+    buses = db.relationship('Bus', backref='route', lazy=True)
+
 # ==========================
 # 👷 Crew Model
 # ==========================
@@ -90,6 +92,14 @@ class BusStop(db.Model):
     longitude = db.Column(db.String, nullable=False)
 
     crowd_reports = db.relationship('CrowdReport', backref='stop', lazy=True)
+
+class Bus(db.Model):
+    __tablename__ = 'buses'
+    id = db.Column(db.Integer, primary_key=True)
+    bus_number = db.Column(db.String(20), nullable=False, unique=True)
+    route_id = db.Column(db.Integer, db.ForeignKey('routes.id'), nullable=False)
+    status = db.Column(db.String(20), default='on_time')  # Options: 'on_time', 'delayed', 'maintenance'
+    last_updated = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     
 

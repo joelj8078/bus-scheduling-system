@@ -1,101 +1,198 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bus Scheduling System</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <style>
-        body { background-color: #f8f9fa; }
-        .card { transition: transform 0.2s ease-in-out; cursor: pointer; }
-        .card:hover { transform: scale(1.05); }
-        #heatmap { height: 500px; margin-bottom: 20px; }
-    </style>
-</head>
-<body class="bg-light">
-    <div class="container mt-5">
-        <h1 class="text-center text-primary">🚍 Bus Scheduling System</h1>
-        <div class="row mt-5 text-center">
-            <div class="col-md-4 mb-3">
-                <a href="/routes_page" class="text-decoration-none">
-                    <div class="card p-4 shadow">
-                        <h3>🚏 Route Details</h3>
-                    </div>
-                </a>
-            </div>
-            <div class="col-md-4 mb-3">
-                <a href="/crew_page" class="text-decoration-none">
-                    <div class="card p-4 shadow">
-                        <h3>👥 Crew Management</h3>
-                    </div>
-                </a>
-            </div>
-            <div class="col-md-4 mb-3">
-                <a href="/dynamic_stop_requests" class="text-decoration-none">
-                    <div class="card p-4 shadow">
-                        <h3>📍 Dynamic Stops</h3>
-                    </div>
-                </a>
-            </div>
-            <div class="col-md-4 mb-3">
-                <a href="/voice_request_stop" class="text-decoration-none">
-                    <div class="card p-4 shadow bg-warning-subtle">
-                        <h3>🎤 Voice Stop Request</h3>
-                    </div>
-                </a>
-            </div>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bus Scheduling System</title>
 
-            <!-- Crowd Heatmap Card -->
-            <div class="col-md-4 mb-3">
-                <a href="/crowd_heatmap" class="text-decoration-none">
-                  <div class="card p-4 shadow bg-danger-subtle">
-                    <h3>🔥 Crowd Heatmap</h3>
-                  </div>
-                </a>
-              </div>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 
-            <div class="col-md-4 mb-3">
-                <a href="/crowd_report" class="text-decoration-none">
-                    <div class="card p-4 shadow bg-info-subtle">
-                        <h3>📋 Crowd Report</h3>
-                    </div>
-                </a>
-            </div>
-        </div>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(to right, #667eea, #764ba2);
+      color: #fff;
+      min-height: 100vh;
+      padding-bottom: 40px;
+      margin: 0;
+    }
 
-    <!-- Scripts -->
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    h1 {
+      font-weight: 600;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
 
-    <script>
-      let mapInitialized = false;
+    .container {
+      margin-top: 80px;
+    }
 
-      function toggleHeatmap() {
-        const section = document.getElementById('heatmap-section');
-        section.style.display = section.style.display === 'none' ? 'block' : 'none';
+    .card {
+      background-color: rgba(255, 255, 255, 0.1);
+      border: none;
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      transition: all 0.3s ease-in-out;
+      cursor: pointer;
+    }
 
-        if (section.style.display === 'block' && !mapInitialized) {
-          const map = L.map('heatmap').setView([28.6139, 77.2090], 14); // Delhi center
+    .card:hover {
+      transform: scale(1.05);
+      background-color: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    }
 
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-              attribution: '&copy; OpenStreetMap contributors'
-          }).addTo(map);
+    .text-decoration-none h3 {
+      color: #fff;
+    }
 
-          fetch('/api/crowd_heatmap')
-            .then(response => response.json())
-            .then(data => {
-              const heatData = data.map(d => [d.latitude, d.longitude, d.intensity]);
-              L.heatLayer(heatData, { radius: 25 }).addTo(map);
-            })
-            .catch(error => {
-              console.error("Failed to load heatmap data:", error);
-            });
+    a.text-decoration-none:hover h3 {
+      color: #ffd700;
+    }
 
-          mapInitialized = true;
-        }
+    footer {
+      background-color: rgba(0, 0, 0, 0.5);
+      color: #fff;
+      text-align: center;
+      padding: 30px;
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      left: 0;
+    }
+
+    footer a {
+      color: #fff;
+      text-decoration: none;
+      margin: 0 15px;
+      transition: color 0.3s ease;
+    }
+
+    footer a:hover {
+      color: #ffd700;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        margin-top: 60px;
       }
-    </script>
+      .card {
+        padding: 20px;
+      }
+    }
+
+    .card {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-8px) scale(1.03);
+      box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-custom {
+      background-color: #0d6efd;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 30px;
+      transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+    }
+
+    .btn-custom:hover {
+      background-color: #0b5ed7;
+      transform: scale(1.05);
+      box-shadow: 0 0 10px rgba(13, 110, 253, 0.6);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Main Content -->
+  <div class="container">
+    <h1 class="text-center mb-5">🚍 Bus Scheduling System</h1>
+    <div class="row text-center g-4">
+      <div class="col-md-4">
+        <a href="/routes_page" class="text-decoration-none" data-bs-toggle="tooltip" title="View and manage all bus routes.">
+          <div class="card p-4">
+            <h3>🚏 Route Details</h3>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-4">
+        <a href="/crew_page" class="text-decoration-none" data-bs-toggle="tooltip" title="Assign and manage bus crew members.">
+          <div class="card p-4">
+            <h3>👥 Crew Management</h3>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-4">
+        <a href="/dynamic_stop_requests" class="text-decoration-none" data-bs-toggle="tooltip" title="See dynamically requested stops from users.">
+          <div class="card p-4">
+            <h3>📍 Dynamic Stops</h3>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-4">
+        <a href="/voice_request_stop" class="text-decoration-none" data-bs-toggle="tooltip" title="View stops requested via voice commands.">
+          <div class="card p-4 bg-warning bg-opacity-25">
+            <h3>🎤 Voice Stop Request</h3>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-4">
+        <a href="/crowd_heatmap" class="text-decoration-none" data-bs-toggle="tooltip" title="Check real-time heatmap of crowd density at bus stops.">
+          <div class="card p-4 bg-danger bg-opacity-25">
+            <h3>🔥 Crowd Heatmap</h3>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-4">
+        <a href="/crowd_report" class="text-decoration-none" data-bs-toggle="tooltip" title="Submit or review crowd level reports.">
+          <div class="card p-4 bg-info bg-opacity-25">
+            <h3>📋 Crowd Report</h3>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-4">
+        <a href="/map" class="text-decoration-none" data-bs-toggle="tooltip" title="Visualize all bus stops and route overlays on an interactive map.">
+          <div class="card p-4 bg-success bg-opacity-25">
+            <h3>🗺️ Map View</h3>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-4">
+        <a href="/inspector/dashboard" class="text-decoration-none" data-bs-toggle="tooltip" title="View buses and toggle their current status.">
+          <div class="card p-4 bg-primary bg-opacity-25">
+            <h3>🕵️ Inspector Dashboard</h3>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <p>© 2025 Bus Scheduling System | <a href="#">Contact</a> | <a href="#">Privacy Policy</a></p>
+    <div>
+      <a href="#" target="_blank">Facebook</a> | 
+      <a href="#" target="_blank">Twitter</a> | 
+      <a href="#" target="_blank">Instagram</a>
+    </div>
+  </footer>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    tooltipTriggerList.forEach(tooltipTriggerEl => {
+      new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+  </script>
+
 </body>
 </html>

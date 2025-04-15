@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, desc 
 from flask_migrate import Migrate
 from config import DATABASE_URL
-from database import db, init_db, Route, Crew, DynamicStopRequest, User, CrowdReport, BusStop
+from database import db, init_db, Route, Crew, DynamicStopRequest, User, CrowdReport, BusStop, Bus 
 import pytz
 import traceback
 from datetime import datetime, timezone
@@ -73,6 +73,16 @@ def crowd_map():
 @app.route('/crowd_heatmap')
 def heatmap_page():
     return render_template('crowd_heatmap.html')
+
+@app.route('/map')
+def map_page():
+    return render_template('map.html')
+
+@app.route('/inspector-dashboard')
+def inspect_dashboard():
+    buses = Bus.query.all()
+    return render_template('inspector_dashboard.html', buses=buses)
+
 
 
 
@@ -541,6 +551,30 @@ def crowd_heatmap():
     except Exception as e:
         print("Error generating heatmap data:", e)
         return jsonify({'success': False, 'message': 'Error fetching heatmap data.'}), 500
+    
+@app.route('/inspector/dashboard', methods=['GET', 'POST'])
+def inspector_dashboard():
+    # Fetch buses from the database
+    buses = Bus.query.all()
+
+    if request.method == 'POST':
+        bus_id = request.form.get('bus_id')
+        bus = Bus.query.get(bus_id)
+        if bus:
+            # Toggle the status to cycle through 'On Time', 'Delayed', and 'Maintenance'
+            if bus.status == 'On Time':
+                bus.status = 'Delayed'
+            elif bus.status == 'Delayed':
+                bus.status = 'Maintenance'
+            else:
+                bus.status = 'On Time'
+            db.session.commit()
+            return redirect(url_for('inspector_dashboard'))
+
+    return render_template('inspector_dashboard.html', buses=buses)
+
+
+
 
 
 # ✅ Run the App
